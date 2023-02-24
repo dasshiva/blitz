@@ -3,6 +3,7 @@ use std::env;
 use std::panic;
 mod lexer;
 use lexer::Lexer;
+use lexer::Token;
 
 fn main() {
   let args: Vec<String> = env::args().collect();
@@ -24,5 +25,12 @@ fn main() {
     panic!("Need a filename");
   }
   let file = fs::read_to_string(&args[1]).expect("File not found");
-  let lexer = Lexer::new(file.as_bytes());
+  let mut lexer = Lexer::new(file.as_bytes());
+  loop {
+    let t = lexer.next();
+    println!("{:?}", t);
+    if t == Token::EOF {
+      break;
+    }
+  }
 }
