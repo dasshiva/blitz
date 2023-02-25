@@ -25,11 +25,11 @@ fn main() {
     panic!("Need a filename");
   }
   let file = fs::read_to_string(&args[1]).expect("File not found");
-  let mut lexer = Lexer::new(file.as_bytes());
+  let mut lexer = Lexer::new(&args[1], file.as_bytes());
   loop {
     let t = lexer.next();
     println!("{:?}", t);
-    if t == Token::EOF {
+    if t.token == Token::EOF {
       break;
     }
   }
