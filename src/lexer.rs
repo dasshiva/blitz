@@ -64,7 +64,7 @@ impl<'a> Lexer<'a> {
     Self {
       input,
       index: 0,
-      pos: 0,
+      pos: 1,
       file: file.to_owned(),
       line: 1
     }
@@ -72,19 +72,25 @@ impl<'a> Lexer<'a> {
   
   pub fn next(&mut self) -> LexerResult {
     let mut instr = false;
+    let mut new_line = false;
     let mut buf = String::new();
     while self.index < self.input.len() {
       let c = self.input[self.index] as char;
       match c {
         ' ' | '\n' => {
           if c == '\n' {
-            self.line += 1;
-            self.pos = 0;
+            new_line = true;
           }
           if !instr {
             if buf.len() != 0 {
                self.pos += 1;
                self.index += 1;
+               if new_line {
+                 let lex = LexerResult::new(buf, self);
+                 self.line += 1;
+                 self.pos = 1;
+                 return lex;
+               }
               return LexerResult::new(buf, self);
             }
           }
@@ -105,6 +111,11 @@ impl<'a> Lexer<'a> {
       }
       self.pos += 1;
       self.index += 1;
+      if new_line {
+        new_line = false;
+        self.line += 1;
+        self.pos = 1;
+      }
     }
     if instr {
       panic!("Error: In File {} at line {} position {}: Unclosed string literal", self.file, self.line, self.pos);
