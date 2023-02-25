@@ -3,7 +3,8 @@ use std::env;
 use std::panic;
 mod lexer;
 use lexer::Lexer;
-use lexer::Token;
+mod parser;
+use parser::Parser;
 
 fn main() {
   let args: Vec<String> = env::args().collect();
@@ -26,11 +27,6 @@ fn main() {
   }
   let file = fs::read_to_string(&args[1]).expect("File not found");
   let mut lexer = Lexer::new(&args[1], file.as_bytes());
-  loop {
-    let t = lexer.next();
-    println!("{:?}", t);
-    if t.token == Token::EOF {
-      break;
-    }
-  }
+  let ast = Parser::new(&mut lexer);
+  Parser::sem_analyse(ast);
 }
