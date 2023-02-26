@@ -1,32 +1,17 @@
-use std::fs;
-use std::env;
 use std::panic;
-mod lexer;
-use lexer::Lexer;
-mod parser;
-use parser::Parser;
+mod file;
+use file::Handle;
+mod r#proc;
+use r#proc::Unit;
 
 fn main() {
-  let args: Vec<String> = env::args().collect();
- /* for (arg in args) {
-    match(&arg) {
-      "-
-    }
-  } */
-  panic::set_hook(Box::new(|panic_info|{ 
+   panic::set_hook(Box::new(|panic_info| {
     if let Some(s) = panic_info.payload().downcast_ref::<String>(){
-      println!("{s}"); 
-    }
+      println!("{s}");
+    } 
     else if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-      println!("{s}"); 
+      println!("{s}");
     }
   }));
-  
-  if args.len() < 2 {
-    panic!("Need a filename");
-  }
-  let file = fs::read_to_string(&args[1]).expect("File not found");
-  let mut lexer = Lexer::new(&args[1], file.as_bytes());
-  let ast = Parser::new(&mut lexer);
-  Parser::sem_analyse(ast);
+  Unit::new(Handle::new("hello.su"));
 }

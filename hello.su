@@ -1,1 +1,2 @@
-int a = 90
+func start
+mov 98, Hello
