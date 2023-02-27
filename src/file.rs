@@ -38,15 +38,3 @@ impl Handle {
     panic!("In File {} at line {} : {}", self.file, self.line, msg)
   }
 }
-
-impl Iterator for Handle {
-  type Item = String;
-  
-  fn next(&mut self) -> Option<Self::Item> {
-    let line = self.read_line();
-    match line.as_ref() {
-      "EOF" => None,
-       _ => Some(line)
-    }
-  }
-}
