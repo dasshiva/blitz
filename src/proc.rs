@@ -1,16 +1,13 @@
 use crate::file::Handle;
+use crate::parser;
 use std::str::FromStr;
 // This lexer and parser have one inherent limitation
 // They cannot process instructions extended over more than one line
 
-#[derive(Debug)]
-pub enum Instruction {
-  MOV
-}
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
-  INS(Instruction),
+  FUNC,
+  ENDFUNC,
   INT(i64),
   DECIMAL(f64),
   STRING(String),
@@ -23,7 +20,8 @@ impl Token {
       return Token::STRING(token[1..].to_owned());
     }
     match token {
-      "mov" => return Token::INS(Instruction::MOV),
+      "func" => return Token::FUNC,
+      "end" => return Token::ENDFUNC,
        _ => {}
     }
     match i64::from_str_radix(token, 10) {
@@ -81,6 +79,7 @@ pub struct Unit {
 
 impl Unit {
   pub fn new(mut src: Handle) -> Unit {
+    let mut parser = Parser::new();
     loop {
       let mut line = src.read_line();
       if &line == "EOF" {
@@ -91,7 +90,10 @@ impl Unit {
         Ok(s) => s,
         Err(e) => src.error(e)
       };
-      println!("{:?}", split);
+      match parser.parse(split) {
+        Ok(..) => {},
+        
+      }
     }
     Unit {
       
