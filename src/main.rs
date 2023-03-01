@@ -2,7 +2,10 @@ use std::panic;
 mod file;
 use file::Handle;
 mod r#proc;
+mod parser;
 use r#proc::Unit;
+extern crate serde;
+extern crate postcard;
 
 fn main() {
    panic::set_hook(Box::new(|panic_info| {
@@ -13,5 +16,5 @@ fn main() {
       println!("{s}");
     }
   }));
-  Unit::new(Handle::new("hello.su"));
+  Unit::new(Handle::new("hello.su")).gen();
 }

@@ -1,12 +1,23 @@
 use crate::file::Handle;
-use crate::parser;
+use crate::parser::*;
 use std::str::FromStr;
+use crate::serde::{Serialize, Deserialize};
+extern crate alloc;
+extern crate postcard;
+use alloc::vec::Vec;
+use postcard::to_allocvec;
+use std::fs::File;
+#[cfg(target_family = "unix")]
+use std::os::unix::fs::FileExt;
+#[cfg(target_family = "windows")]
+use std::os::windows::fs::FileExt;
 // This lexer and parser have one inherent limitation
 // They cannot process instructions extended over more than one line
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
   FUNC,
+  DEFINE,
   ENDFUNC,
   INT(i64),
   DECIMAL(f64),
@@ -22,6 +33,7 @@ impl Token {
     match token {
       "func" => return Token::FUNC,
       "end" => return Token::ENDFUNC,
+      "define" => return Token::DEFINE,
        _ => {}
     }
     match i64::from_str_radix(token, 10) {
@@ -45,6 +57,7 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
     match c {
       ' ' | '\n' => {
         if buf.len() == 0 || instr {
+          buf.push(c);
           continue;
         }
         ret.push(Token::new(&buf));
@@ -63,7 +76,7 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
         instr = true;
         buf.push(c);
       }
-      ':' | ',' => {} // Ignore commaand and semi colon
+      ':' | ',' => {} // Ignore comma and and semi colon
       _ => buf.push(c)
     }
   }
@@ -73,8 +86,10 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   Ok(ret)
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Unit {
-  
+  name: String,
+  funcs: Vec<Function>
 }
 
 impl Unit {
@@ -92,11 +107,21 @@ impl Unit {
       };
       match parser.parse(split) {
         Ok(..) => {},
-        
+         Err(e) => src.error(e)
       }
     }
     Unit {
-      
+      name: src.file,
+      funcs: parser.funcs
     }
+  }
+  
+  pub fn gen(&self) {
+    let file = File::create(self.name.clone() + ".out").expect("Failed to open output file");
+    let output: Vec<u8> = to_allocvec(self).unwrap();
+    #[cfg(target_family = "unix")]
+    file.write_at(&output, 0);
+    #[cfg(target_family = "windows")]
+    file.seek_read(&output, 0);
   }
 }

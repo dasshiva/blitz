@@ -1,1 +1,4 @@
-mov 98, Hello
+define HELLO 'Hello World'
+func hello
+mov r1, HELLO
+end

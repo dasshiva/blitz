@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 
 pub struct Handle {
-  file: String,
+  pub file: String,
   line: usize,
   contents: BufReader<File>
 }
@@ -15,7 +15,7 @@ impl Handle {
     };
     Self {
       file: name.to_owned(),
-      line : 1,
+      line : 0,
       contents: BufReader::new(h)
     }
   }
