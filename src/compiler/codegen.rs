@@ -8,18 +8,19 @@ const MAGIC: u32 = 0xAFC;
 const MAJOR: u16 = 0x1;
 const MINOR: u16 = 0x0;
 
-fn compute_flags(ins: &Instr) -> u8 {
+fn compute_flags(ins: &Instr) -> Vec<u8> {
   if ins.len == 1 {
     return 0;
   }
-  let mut flag = 0u16;
-  let mut bit = 0;
+  let mut ret: Vec<u8> = Vec::new();
   for arg in ins.args.as_ref().unwrap() {
     match arg {
-      Args::REGISTER(..) => flag |= 1 << bit,
+      Args::REGISTER(..) => ret.push('R' as u8),
+      Args::INT(..) => ret.push('I' as u8),
+      Args::DECIMAL(..) => ret.push('D' as u8)
+      Args::D
       _ => {}
     }
-    bit += 1;
   }
   flag
 }
