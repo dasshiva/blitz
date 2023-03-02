@@ -12,3 +12,6 @@ path = "src/compiler/main.rs"
 [[bin]]
 name = "blitz"
 path = "src/runtime/main.rs"
+
+[dependencies]
+bitstream-io = "1.6.0"

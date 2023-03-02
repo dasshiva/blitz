@@ -90,8 +90,8 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
 }
 
 pub struct Unit {
-  name: String,
-  funcs: Vec<Function>
+  pub name: String,
+  pub funcs: Vec<Function>
 }
 
 impl Unit {

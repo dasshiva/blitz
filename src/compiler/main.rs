@@ -4,9 +4,8 @@ mod file;
 use file::Handle;
 mod r#proc;
 mod parser;
+mod codegen;
 use r#proc::Unit;
-extern crate serde;
-extern crate postcard;
 
 fn main() {
    panic::set_hook(Box::new(|panic_info| {
@@ -18,6 +17,6 @@ fn main() {
     }
   }));
   let args: Vec<String> = env::args().collect();
-  Unit::new(Handle::new("hello.su"));
+  codegen::code_gen(Unit::new(Handle::new("hello.su")));
   
 }

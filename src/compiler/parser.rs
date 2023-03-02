@@ -1,6 +1,6 @@
 use crate::r#proc::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Instruction {
   MOV = 1
 }
