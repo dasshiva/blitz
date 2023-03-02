@@ -5,10 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-postcard = { version = "1.0.4", features = ["alloc"] }
-serde = "1.0.152"
-
 [[bin]]
 name = "blc"
 path = "src/compiler/main.rs"

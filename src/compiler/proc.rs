@@ -1,16 +1,6 @@
 use crate::file::Handle;
 use crate::parser::*;
 use std::str::FromStr;
-use crate::serde::{Serialize, Deserialize};
-extern crate alloc;
-extern crate postcard;
-use alloc::vec::Vec;
-use postcard::to_allocvec;
-use std::fs::File;
-#[cfg(target_family = "unix")]
-use std::os::unix::fs::FileExt;
-#[cfg(target_family = "windows")]
-use std::os::windows::fs::FileExt;
 // This lexer and parser have one inherent limitation
 // They cannot process instructions extended over more than one line
 
@@ -99,7 +89,6 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   Ok(ret)
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Unit {
   name: String,
   funcs: Vec<Function>
@@ -129,12 +118,4 @@ impl Unit {
     }
   }
   
-  pub fn gen(&self) {
-    let file = File::create(self.name.clone() + ".out").expect("Failed to open output file");
-    let output: Vec<u8> = to_allocvec(self).unwrap();
-    #[cfg(target_family = "unix")]
-    file.write_at(&output, 0);
-    #[cfg(target_family = "windows")]
-    file.seek_read(&output, 0);
-  }
 }

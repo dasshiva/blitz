@@ -1,7 +1,6 @@
 use crate::r#proc::Token;
-use crate::serde::{Serialize, Deserialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq)]
 pub enum Instruction {
   MOV = 1
 }
@@ -15,7 +14,7 @@ impl Instruction {
   }
 }
 
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(PartialEq)]
 pub enum Args {
   INT(i64),
   DECIMAL(f64),
@@ -52,7 +51,6 @@ impl Args {
   }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Instr {
   pub name: Instruction,
   pub len: usize,
@@ -92,7 +90,6 @@ impl Instr {
   }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Function {
  pub name: String,
  pub ins: Vec<Instr>

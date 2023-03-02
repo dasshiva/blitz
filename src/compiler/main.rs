@@ -18,6 +18,6 @@ fn main() {
     }
   }));
   let args: Vec<String> = env::args().collect();
-  Unit::new(Handle::new("hello.su")).gen();
+  Unit::new(Handle::new("hello.su"));
   
 }
