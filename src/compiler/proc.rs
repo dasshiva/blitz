@@ -27,7 +27,7 @@ pub enum Token {
 
 impl Token {
   pub fn new(token: &str) -> Self {
-    if token.chars().nth(0) == Some('\'') {
+    if token.chars().nth(0) == Some('\'') || token.chars().nth(0) == Some('\"') {
       return Token::STRING(token[1..].to_owned());
     }
     match token {
@@ -51,6 +51,7 @@ impl Token {
 fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   let mut ret: Vec<Token> = Vec::new();
   let mut instr = false;
+  let mut comm = false;
   let mut buf = String::new();
   for ch in string {
     let c = *ch as char;
@@ -66,7 +67,16 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
         }
         buf.clear();
       }
-      '\'' => {
+      '/' => {
+        if comm {
+          if buf.len() != 0 {
+            ret.push(Token::new(&buf));
+          }
+          return Ok(ret);
+        }
+        comm = true;
+      }
+      '\'' | '\"' => {
         if instr {
           ret.push(Token::new(&buf));
           buf.clear();
@@ -82,6 +92,9 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   }
   if instr {
     return Err("Unclosed string literal");
+  }
+  if comm {
+    return Err("Unclosed comment");
   }
   Ok(ret)
 }

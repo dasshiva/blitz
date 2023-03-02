@@ -77,6 +77,9 @@ impl Instr {
   }
   
   pub fn add_args(&mut self, args: &[Token], defines: &Vec<Define>) -> Result<(), &'static str> {
+    if args.len() + 1 != self.len {
+      return Err("Instruction has been given more or less arguments than needed");
+    }
     for arg in args {
       let ar = Args::new(arg, defines)?;
       self.args.as_mut().unwrap().push(ar);

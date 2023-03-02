@@ -1,4 +1,5 @@
 use std::panic;
+use std::env;
 mod file;
 use file::Handle;
 mod r#proc;
@@ -16,5 +17,7 @@ fn main() {
       println!("{s}");
     }
   }));
+  let args: Vec<String> = env::args().collect();
   Unit::new(Handle::new("hello.su")).gen();
+  
 }

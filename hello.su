@@ -1,4 +1,3 @@
-define HELLO 'Hello World'
 func hello
-mov r1, HELLO
+  mov r9, 100 
 end

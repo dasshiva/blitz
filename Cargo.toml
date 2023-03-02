@@ -8,4 +8,11 @@ edition = "2021"
 [dependencies]
 postcard = { version = "1.0.4", features = ["alloc"] }
 serde = "1.0.152"
-serde_derive = "1.0.152"
+
+[[bin]]
+name = "blc"
+path = "src/compiler/main.rs"
+
+[[bin]]
+name = "blitz"
+path = "src/runtime/main.rs"
