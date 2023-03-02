@@ -14,4 +14,4 @@ name = "blitz"
 path = "src/runtime/main.rs"
 
 [dependencies]
-bitstream-io = "1.6.0"
+file-utils = "0.1.5"

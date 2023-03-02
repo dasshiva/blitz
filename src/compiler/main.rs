@@ -17,6 +17,8 @@ fn main() {
     }
   }));
   let args: Vec<String> = env::args().collect();
-  codegen::code_gen(Unit::new(Handle::new("hello.su")));
-  
+  if args.len() < 2 {
+    panic!("Input file name needed");
+  }
+  codegen::code_gen(Unit::new(Handle::new(&args[1])));
 }
