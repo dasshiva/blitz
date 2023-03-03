@@ -15,5 +15,8 @@ fn main() {
   if args.len() < 2 {
     panic!("Input file name needed");
   }
-  verifier::Unit::new(&args[1]);
+  match verifier::Unit::new(&args[1]) {
+    Ok(..) => {},
+    Err(e) => panic!("{e}")
+  }
 }

@@ -23,6 +23,7 @@ fn compute_flags(ins: &Instr) -> Vec<u8> {
 }
 
 fn write_bytes(file: &mut File, buf: &[u8]) -> Result<(), Error> {
+  file.write_u32(buf.len() as u32);
   for i in buf {
     file.write_u8(*i)?;
   }
