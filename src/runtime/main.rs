@@ -20,5 +20,5 @@ fn main() {
     Ok(s) => s,
     Err(e) => panic!("{:?}", e)
   };
-  runtime::Runtime::new(unit).run();
+  runtime::Runtime::new(unit).run("main");
 }

@@ -2,13 +2,33 @@ use crate::r#proc::Token;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Instruction {
-  MOV = 1
+  MOV = 1,
+  ADD = 2,
+  SUB = 3,
+  MUL = 4,
+  DIV = 5,
+  MOD = 6,
+  OR = 7,
+  AND = 8,
+  XOR = 9,
+  SHL = 10,
+  SHR = 11
 }
 
 impl Instruction {
   pub fn new(name: String) -> Result<(Self, usize), &'static str> {
     match name.as_ref() {
       "mov" | "MOV" => Ok((Instruction::MOV, 3)),
+      "add" | "ADD" => Ok((Instruction::ADD, 4)),
+      "sub" | "SUB" => Ok((Instruction::SUB, 4)),
+      "mul" | "MUL" => Ok((Instruction::MUL, 4)),
+      "div" | "DIV" => Ok((Instruction::DIV, 4)),
+      "mod" | "MOD" => Ok((Instruction::MOD, 4)),
+      "or"  | "OR"  => Ok((Instruction::OR, 4)),
+      "and" | "AND" => Ok((Instruction::AND, 4)),
+      "xor" | "XOR" => Ok((Instruction::XOR, 4)),
+      "shl" | "SHL" => Ok((Instruction::SHL, 4)),
+      "shr" | "SHR" => Ok((Instruction::SHR, 4)),
       _ => Err("Invalid instruction")
     }
   }
