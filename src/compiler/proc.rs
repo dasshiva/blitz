@@ -12,13 +12,17 @@ pub enum Token {
   INT(i64),
   DECIMAL(f64),
   STRING(String),
-  IDENT(String)
+  IDENT(String),
+  LABEL(String),
 }
 
 impl Token {
   pub fn new(token: &str) -> Self {
     if token.chars().nth(0) == Some('\'') || token.chars().nth(0) == Some('\"') {
       return Token::STRING(token[1..].to_owned());
+    }
+    if token.chars().nth(token.len() - 1) == Some(':') {
+      return Token::LABEL(token[0..token.len()-1].to_string());
     }
     match token {
       "func" => return Token::FUNC,
@@ -76,7 +80,7 @@ fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
         instr = true;
         buf.push(c);
       }
-      ':' | ',' => {} // Ignore comma and and semi colon
+      ';' | ',' => {} // Ignore comma and and semi colon
       _ => buf.push(c)
     }
   }

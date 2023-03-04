@@ -17,6 +17,7 @@ fn compute_flags(ins: &Instr) -> Vec<u8> {
       Args::INT(..) => ret.push('I' as u8),
       Args::DECIMAL(..) => ret.push('D' as u8),
       Args::STRING(..) => ret.push('S' as u8),
+      _ => unreachable!()
     }
   }
   ret

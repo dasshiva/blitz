@@ -1,10 +1,9 @@
 use crate::verifier::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum CpuStore {
   INT(i64),
-  DECIMAL(f64),
-  EMPTY
+  DECIMAL(f64)
 }
 
 impl From<&Args> for CpuStore {
@@ -12,7 +11,7 @@ impl From<&Args> for CpuStore {
     match args {
       Args::INT(i) => CpuStore::INT(*i),
       Args::DECIMAL(d) => CpuStore::DECIMAL(*d),
-      _ => CpuStore::EMPTY
+      _ => unreachable!()
     }
   }
 }
@@ -27,7 +26,7 @@ impl Runtime {
   pub fn new(unit: Unit) -> Self {
     let mut cpu: Vec<CpuStore> = Vec::new();
     for _ in 0..30 {
-      cpu.push(CpuStore::EMPTY);
+      cpu.push(CpuStore::INT(0));
     }
     Self {
       cpu,
@@ -68,23 +67,42 @@ impl Runtime {
             CpuStore::INT(s) => {
               match arg2 {
                 CpuStore::INT(s1) => self.cpu[reg] = calc_int(s, s1, delta),
-                CpuStore::DECIMAL(d) => self.cpu[reg] = calc_dec(s as f64, d, delta),
-                CpuStore::EMPTY => self.cpu[reg] = arg1
+                CpuStore::DECIMAL(d) => self.cpu[reg] = calc_dec(s as f64, d, delta)
               }
             }
             CpuStore::DECIMAL(d) => {
               match arg2 {
                 CpuStore::INT(s1) => self.cpu[reg] = calc_int(d as i64, s1, delta),
                 CpuStore::DECIMAL(d1) => self.cpu[reg] = calc_dec(d, d1, delta),
-                CpuStore::EMPTY => self.cpu[reg] = arg1
               }
             }
-            CpuStore::EMPTY => {
-              match arg2 {
-                CpuStore::EMPTY => self.cpu[reg] = arg1,
-                _ => self.cpu[reg] = arg2
-              }
-            }
+          }
+        }
+        12 => {
+          let args = ins.args.as_ref().unwrap();
+          self.pc = match args[0] {
+            Args::INT(s) => s as usize,
+            _ => panic!("Expected a label to jump to")
+          };
+          continue;
+        }
+        13 | 14 | 15 | 16 | 17 | 18 => {
+          let args = ins.args.as_ref().unwrap();
+          let arg1 = self.get(&ins.sign[0..1], &args[0]);
+          let arg2 = self.get(&ins.sign[1..2], &args[1]);
+          let mut res = false;
+          match ins.name - 13  {
+            0 => res = arg1 == arg2,
+            1 => res = arg1 != arg2,
+            2 => res = arg1 <= arg2,
+            3 => res = arg1 < arg2,
+            4 => res = arg1 >= arg2,
+            5 => res = arg1 > arg2,
+            _ => unreachable!()
+          }
+          if !res {
+            self.pc += 2;
+            continue;
           }
         }
         _ => unimplemented!()

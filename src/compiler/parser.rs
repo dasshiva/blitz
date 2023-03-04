@@ -12,7 +12,14 @@ pub enum Instruction {
   AND = 8,
   XOR = 9,
   SHL = 10,
-  SHR = 11
+  SHR = 11,
+  JMP = 12,
+  IFEQ = 13,
+  IFNE = 14,
+  IFGE = 15,
+  IFGT = 16,
+  IFLE = 17,
+  IFLT = 18
 }
 
 impl Instruction {
@@ -29,16 +36,33 @@ impl Instruction {
       "xor" | "XOR" => Ok((Instruction::XOR, 4)),
       "shl" | "SHL" => Ok((Instruction::SHL, 4)),
       "shr" | "SHR" => Ok((Instruction::SHR, 4)),
+      "jmp" | "JMP" => Ok((Instruction::JMP, 2)),
+      "ifeq" | "IFEQ" => Ok((Instruction::IFEQ, 3)),
+      "ifne" | "IFNE" => Ok((Instruction::IFNE, 3)),
+      "ifge" | "IFGE" => Ok((Instruction::IFGE, 3)),
+      "ifgt" | "IFGT" => Ok((Instruction::IFGT, 3)),
+      "ifle" | "IFLE" => Ok((Instruction::IFLE, 3)),
+      "iflt" | "IFLT" => Ok((Instruction::IFLT, 3)),
       _ => Err("Invalid instruction")
+    }
+  }
+  
+  pub fn is_farg_nreg(&self) -> bool {
+    match self {
+      Instruction::JMP | Instruction::IFEQ | Instruction::IFNE |
+      Instruction::IFLT | Instruction::IFLE | Instruction::IFGT |
+      Instruction::IFGE => true,
+      _ => false
     }
   }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Args {
   INT(i64),
   DECIMAL(f64),
   STRING(String),
+  LABEL(String),
   REGISTER(u8)
 }
 
@@ -61,7 +85,7 @@ impl Args {
             return Args::new(&def.1, defines);
           }
         }
-        return Err("Only registers and raw literals are allowed as arguments of instructions");
+        return Ok(Args::LABEL(s.to_string()));
       }
       Token::INT(i) => Ok(Args::INT(*i)),
       Token::DECIMAL(j) => Ok(Args::DECIMAL(*j)),
@@ -71,9 +95,11 @@ impl Args {
   }
 }
 
+#[derive(Debug)]
 pub struct Instr {
   pub name: Instruction,
   pub len: usize,
+  pub has_label: bool,
   pub args: Option<Vec<Args>>
 }
 
@@ -82,6 +108,7 @@ impl Instr {
     let (ins, len) = Instruction::new(name)?;
     Ok(Self {
       name: ins,
+      has_label: false,
       len,
       args: {
         if len != 1 {
@@ -100,11 +127,17 @@ impl Instr {
     }
     for arg in args {
       let ar = Args::new(arg, defines)?;
+      match ar {
+        Args::LABEL(..) => self.has_label = true,
+        _ => {}
+      }
       self.args.as_mut().unwrap().push(ar);
     }
-    match self.args.as_ref().unwrap()[0] {
-      Args::REGISTER(..) => {},
-      _ => return Err("First argument to instruction must be a register")
+    if !self.name.is_farg_nreg() {
+      match self.args.as_ref().unwrap()[0] {
+        Args::REGISTER(..) => {},
+        _ => return Err("First argument to instruction must be a register")
+      }
     }
     Ok(())
   }
@@ -136,6 +169,7 @@ pub struct Define(String, Token);
 
 pub struct Parser {
   define: Vec<Define>,
+  labels: Vec<Define>,
   pub funcs: Vec<Function>,
   state: u8
 }
@@ -145,6 +179,7 @@ impl Parser {
     Self {
       define: Vec::new(),
       funcs: Vec::new(),
+      labels: Vec::new(),
       state: 0u8
     }
   }
@@ -192,10 +227,46 @@ impl Parser {
           this_func.add_ins(ins);
           self.funcs.push(this_func);
         },
-        Token::ENDFUNC => self.state = 0,
+        Token::LABEL(s) => {
+          let func = self.funcs.pop().unwrap();
+          self.labels.push(Define(s.to_string(), Token::INT(func.ins.len() as i64)));
+          self.funcs.push(func);
+        }
+        Token::ENDFUNC => {
+          self.state = 0;
+          let mut this_func = self.funcs.pop().unwrap();
+          for ins in &mut this_func.ins {
+            if ins.has_label {
+              let args = ins.args.as_mut().unwrap();
+              for i in 0..args.len() {
+                match &args[i] {
+                  Args::LABEL(s) => {
+                    let label = self.find_label(&s)?;
+                    args[i] = match self.labels[label].1 {
+                      Token::INT(s) => Args::INT(s),
+                      _ => unreachable!()
+                    };
+                  } 
+                  _ => {}
+                } // match args[i]
+              } // args_loop
+            } // if ins.has_label
+          } // ins_loop
+          self.funcs.push(this_func);
+          self.labels.clear();
+        } // match TOKEN::ENDFUNC
         _ => return Err("Expected instruction name here")
       }
     }
     Ok(())
+  }
+  
+  fn find_label(&self, name: &str) -> Result<usize, &'static str> {
+    for i in 0..self.labels.len() {
+      if self.labels[i].0 == name {
+        return Ok(i);
+      }
+    }
+    Err("Label not found")
   }
 }
