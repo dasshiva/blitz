@@ -43,10 +43,7 @@ pub fn code_gen(unit: Unit) -> Result<(), Error> {
     for ins in func.ins {
       writer.write_u16(ins.name as u16)?;
       let flags = compute_flags(&ins);
-      writer.write_u8(flags.len() as u8)?;
-      if flags.len() != 0 {
-        write_bytes(&mut writer, &flags)?;
-      }
+      write_bytes(&mut writer, &flags)?;
       for arg in ins.args.as_ref().unwrap() {
         match arg {
           Args::REGISTER(r) => writer.write_u8(*r)?,

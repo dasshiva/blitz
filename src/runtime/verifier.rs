@@ -6,9 +6,9 @@ use file_utils::read::Read;
 fn str_from_bytes(file: &mut File) -> Result<String, Error> {
   let size = file.read_u32()?;
   if size == 0 {
-    return String::new();
+    return Ok(String::new());
   }
-  let buf: Vec<u8> = Vec::with_capacity(size as usize);
+  let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
   for _ in 0..size {
     buf.push(file.read_u8()?);
   }
@@ -17,62 +17,80 @@ fn str_from_bytes(file: &mut File) -> Result<String, Error> {
   }
 }
 
-pub enum Instruction {
-  MOV = 1
-}
-
 pub enum Args {
   INT(i64),
   DECIMAL(f64),
-  STRING(String),
   REGISTER(u8)
 }
 
+impl Args {
+  pub fn get_reg_num(&self) -> u8 {
+    match self {
+      Args::REGISTER(s) => *s,
+      _ => unreachable!()
+    }
+  }
+}
+
 pub struct Ins {
-  name: Instruction,
-  sign: String,
-  args: Option<Vec<Args>>
+  pub name: u16,
+  pub sign: String,
+  pub args: Option<Vec<Args>>
 }
 
 impl Ins {
   pub fn new(file: &mut File) -> Result<Self, Error> {
-    let name = file.read_u16()? as Instruction;
+    let name = file.read_u16()?;
     let sign = str_from_bytes(file)?;
     if sign.len() == 0 {
-      Ok({
+      Ok(Self {
         name,
         sign,
         args: None
-      });
+      })
     }
     else {
       let mut args: Vec<Args> = Vec::new();
       for byte in sign.as_bytes() {
-        match byte as char {
+        match *byte as char {
           'R' => {
             let reg = file.read_u8()?;
             args.push(Args::REGISTER(reg));
           }
+          'I' => {
+            let int = file.read_i64()?;
+            args.push(Args::INT(int));
+          }
+          'D' => {
+            let decimal = file.read_f64()?;
+            args.push(Args::DECIMAL(decimal));
+          }
+          _ => unreachable!()
         }
       }
+      Ok(Self {
+        name,
+        sign,
+        args: Some(args)
+      })
     }
   }
 }
 
 pub struct Function {
-  name: String,
-  ins: Vec<Ins>
+  pub name: String,
+  pub ins: Vec<Ins>
 }
 
 impl Function {
   pub fn new(file: &mut File) -> Result<Self, Error> {
-    let name = str_from_bytes(file);
+    let name = str_from_bytes(file)?;
     let ins_size = file.read_u32()?;
     let mut ins: Vec<Ins> = Vec::new();
     for _ in 0..ins_size {
       ins.push(Ins::new(file)?);
     }
-    Ok({
+    Ok(Self {
       name,
       ins
     })
@@ -80,9 +98,9 @@ impl Function {
 }
 
 pub struct Unit {
-  major: u16,
-  minor: u16,
-  funcs: Vec<Function>
+  pub major: u16,
+  pub minor: u16,
+  pub funcs: Vec<Function>
 }
 
 const MAGIC: u32 = 0xAFC;
@@ -98,13 +116,13 @@ impl Unit {
     }
     let major = file.read_u16()?;
     let minor = file.read_u16()?;
-    if major != MAJOR || major != MINOR {
+    if major != MAJOR || minor != MINOR {
       panic!("Unsupported blitz version {major}.{minor}");
     }
     let func_len = file.read_u32()?;
     let mut funcs: Vec<Function> = Vec::with_capacity(func_len as usize);
     for _ in 0..func_len {
-      
+      funcs.push(Function::new(&mut file)?);
     }
     Ok(Self {
       major,
