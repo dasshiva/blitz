@@ -20,7 +20,8 @@ fn str_from_bytes(file: &mut File) -> Result<String, Error> {
 pub enum Args {
   INT(i64),
   DECIMAL(f64),
-  REGISTER(u8)
+  REGISTER(u8),
+  STRING(String)
 }
 
 impl Args {
@@ -64,6 +65,10 @@ impl Ins {
           'D' => {
             let decimal = file.read_f64()?;
             args.push(Args::DECIMAL(decimal));
+          }
+          'S' => {
+            let string = str_from_bytes(file)?;
+            args.push(Args::STRING(string));
           }
           _ => unreachable!()
         }

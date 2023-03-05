@@ -19,7 +19,6 @@ impl From<&Args> for CpuStore {
 pub struct Runtime {
   cpu: Vec<CpuStore>,
   unit: Unit,
-  pc: usize
 }
 
 impl Runtime {
@@ -30,13 +29,13 @@ impl Runtime {
     }
     Self {
       cpu,
-      unit,
-      pc: 0
+      unit
     }
   }
   
-  pub fn run(&mut self, name: &str) {
+  pub fn run(&mut self, name: &str, mut pc: usize) {
     let mut index = -1;
+    let mut tocall: Option<String> = None;
     for i in 0..self.unit.funcs.len() {
       if self.unit.funcs[i].name == name {
         index = i as isize;
@@ -44,11 +43,11 @@ impl Runtime {
       }
     }
     if index == -1 {
-      panic!("Main function not found");
+      panic!("{} function not found", name);
     }
     let main = self.unit.funcs.get(index as usize).unwrap(); 
-    while self.pc < main.ins.len() {
-      let ins = &main.ins[self.pc];
+    while pc < main.ins.len() {
+      let ins = &main.ins[pc];
       println!("{:?}", self.cpu);
       match ins.name {
         1 => {
@@ -80,7 +79,7 @@ impl Runtime {
         }
         12 => {
           let args = ins.args.as_ref().unwrap();
-          self.pc = match args[0] {
+          pc = match args[0] {
             Args::INT(s) => s as usize,
             _ => panic!("Expected a label to jump to")
           };
@@ -101,14 +100,28 @@ impl Runtime {
             _ => unreachable!()
           }
           if !res {
-            self.pc += 2;
+            pc += 2;
             continue;
           }
         }
-        _ => unimplemented!()
+        19 => {
+          let func = &ins.args.as_ref().unwrap()[0];
+          match func {
+            Args::STRING(s) => {
+              tocall = Some(s.to_string()); 
+              break;
+            }
+            _ => unreachable!()
+          }
+        }
+        _ => panic!("Invalid or unimplemented opcode {}", ins.name)
       }
-      self.pc += 1;
+      pc += 1;
       println!("{:?}", self.cpu);
+    }
+    if tocall.is_some() {
+      self.run(&tocall.unwrap(), 0);
+      self.run(name, pc + 1);
     }
   }
   

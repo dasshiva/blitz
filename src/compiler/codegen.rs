@@ -50,7 +50,8 @@ pub fn code_gen(unit: Unit) -> Result<(), Error> {
           Args::REGISTER(r) => writer.write_u8(*r)?,
           Args::INT(i) => writer.write_i64(*i)?,
           Args::DECIMAL(d) => writer.write_f64(*d)?,
-          _ => panic!("Strings are not supported as instruction arguments yet.")
+          Args::STRING(s) => write_bytes(&mut writer, &s.as_bytes())?,
+          _ => unreachable!()
         }
       }
     }

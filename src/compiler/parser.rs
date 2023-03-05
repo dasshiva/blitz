@@ -19,7 +19,8 @@ pub enum Instruction {
   IFGE = 15,
   IFGT = 16,
   IFLE = 17,
-  IFLT = 18
+  IFLT = 18,
+  CALL = 19
 }
 
 impl Instruction {
@@ -43,6 +44,7 @@ impl Instruction {
       "ifgt" | "IFGT" => Ok((Instruction::IFGT, 3)),
       "ifle" | "IFLE" => Ok((Instruction::IFLE, 3)),
       "iflt" | "IFLT" => Ok((Instruction::IFLT, 3)),
+      "call" | "CALL" => Ok((Instruction::CALL, 2)),
       _ => Err("Invalid instruction")
     }
   }
@@ -51,7 +53,7 @@ impl Instruction {
     match self {
       Instruction::JMP | Instruction::IFEQ | Instruction::IFNE |
       Instruction::IFLT | Instruction::IFLE | Instruction::IFGT |
-      Instruction::IFGE => true,
+      Instruction::IFGE | Instruction::CALL => true,
       _ => false
     }
   }
@@ -241,12 +243,21 @@ impl Parser {
               for i in 0..args.len() {
                 match &args[i] {
                   Args::LABEL(s) => {
-                    let label = self.find_label(&s)?;
-                    args[i] = match self.labels[label].1 {
-                      Token::INT(s) => Args::INT(s),
-                      _ => unreachable!()
-                    };
-                  } 
+                    match self.find_label(&s) {
+                      Ok(s) => {
+                        args[i] = match self.labels[s].1 {
+                          Token::INT(s) => Args::INT(s),
+                          _ => unreachable!()
+                        };
+                      }
+                      Err(..) => {
+                        if ins.name != Instruction::CALL {
+                          return Err("Label not found");
+                        }
+                        args[i] = Args::STRING(s.to_string());
+                      }
+                    }
+                  }
                   _ => {}
                 } // match args[i]
               } // args_loop
@@ -261,12 +272,12 @@ impl Parser {
     Ok(())
   }
   
-  fn find_label(&self, name: &str) -> Result<usize, &'static str> {
+  fn find_label(&self, name: &str) -> Result<usize, ()> {
     for i in 0..self.labels.len() {
       if self.labels[i].0 == name {
         return Ok(i);
       }
     }
-    Err("Label not found")
+    Err(())
   }
 }
