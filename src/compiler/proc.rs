@@ -8,6 +8,7 @@ use std::str::FromStr;
 pub enum Token {
   FUNC,
   DEFINE,
+  INCLUDE,
   ENDFUNC,
   INT(i64),
   DECIMAL(f64),
@@ -28,6 +29,7 @@ impl Token {
       "func" => return Token::FUNC,
       "end" => return Token::ENDFUNC,
       "define" => return Token::DEFINE,
+      "include" => return Token::INCLUDE,
        _ => {}
     }
     match i64::from_str_radix(token, 10) {

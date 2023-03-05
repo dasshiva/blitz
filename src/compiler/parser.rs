@@ -1,5 +1,5 @@
-use crate::r#proc::Token;
-
+use crate::r#proc::{Token, Unit};
+use crate::file::Handle;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Instruction {
   MOV = 1,
@@ -201,6 +201,15 @@ impl Parser {
             Ok(s) => self.funcs.push(s),
             Err(e) => return Err(e)
           }
+        }
+        Token::INCLUDE => {
+          if target.len() < 2;{
+            return Err("include keyword has to be followed by a file name");
+          }
+          let name = match &target[1] {
+            Token::STRING(s) => s.to_string(),
+            _ => return Err("Expected string representing filename after define keyword")
+          };
         }
         Token::DEFINE => {
           if target.len() < 3 {
