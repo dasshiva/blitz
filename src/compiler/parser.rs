@@ -1,4 +1,4 @@
-use crate::r#proc::{Token, Unit};
+use crate::r#proc::{Token, line_split};
 use crate::file::Handle;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Instruction {
@@ -203,13 +203,32 @@ impl Parser {
           }
         }
         Token::INCLUDE => {
-          if target.len() < 2;{
+          if target.len() < 2 {
             return Err("include keyword has to be followed by a file name");
           }
           let name = match &target[1] {
-            Token::STRING(s) => s.to_string(),
+            Token::STRING(s) => s, 
             _ => return Err("Expected string representing filename after define keyword")
           };
+          let mut src = Handle::new(name);
+          let mut parser = Parser::new();
+          loop {
+             let mut line = src.read_line();
+             if &line == "EOF" {
+               break;
+              }
+             line.push(' ');
+            let split = match line_split(line.as_bytes()) {
+              Ok(s) => s,
+              Err(e) => src.error(e)
+            };
+            match parser.parse(split) {
+              Ok(..) => {},
+              Err(e) => src.error(e)
+            }
+          }
+          self.define.append(&mut parser.define);
+          self.funcs.append(&mut parser.funcs);
         }
         Token::DEFINE => {
           if target.len() < 3 {

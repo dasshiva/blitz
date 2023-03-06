@@ -44,7 +44,7 @@ impl Token {
   }
 }
 
-fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
+pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   let mut ret: Vec<Token> = Vec::new();
   let mut instr = false;
   let mut comm = false;

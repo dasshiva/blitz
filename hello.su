@@ -1,3 +1,5 @@
+include "cool.su"
+
 func main 
   mov r0, 10
   mov r1, 2
@@ -8,6 +10,7 @@ label:
   jmp label
 finish:
   call high
+  call low
 end
 
 func high 
