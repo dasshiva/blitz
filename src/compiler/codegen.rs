@@ -43,6 +43,10 @@ pub fn code_gen(unit: Unit) -> Result<(), Error> {
     writer.write_u32(func.ins.len() as u32)?;
     for ins in func.ins {
       writer.write_u16(ins.name as u16)?;
+      if ins.name.is_no_arg() {
+        write_bytes(&mut writer, &['N' as u8])?;
+        continue;
+      }
       let flags = compute_flags(&ins);
       write_bytes(&mut writer, &flags)?;
       for arg in ins.args.as_ref().unwrap() {

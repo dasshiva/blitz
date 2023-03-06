@@ -1,18 +1,10 @@
 include "cool.su"
 
-func main 
+func main
+  nop
   mov r0, 10
-  mov r1, 2
-label:
-  sub r0, r0, r1
-  ifeq r0, 0
-  jmp finish
-  jmp label
-finish:
-  call high
+  fmov f0, 1.0
+  fadd f0, f0, 5.0
+  fifeq f0, 6.0
   call low
-end
-
-func high 
-  mov r0, 9
 end

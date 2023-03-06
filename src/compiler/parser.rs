@@ -2,6 +2,7 @@ use crate::r#proc::{Token, line_split};
 use crate::file::Handle;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Instruction {
+  NOP = 0,
   MOV = 1,
   ADD = 2,
   SUB = 3,
@@ -21,12 +22,24 @@ pub enum Instruction {
   IFLE = 17,
   IFLT = 18,
   CALL = 19,
-  FMOV = 20
+  FMOV = 20,
+  FADD = 21,
+  FSUB = 22,
+  FMUL = 23,
+  FDIV = 24,
+  FMOD = 25,
+  FIFEQ = 26,
+  FIFNE = 27,
+  FIFGE = 28,
+  FIFGT = 29,
+  FIFLE = 30,
+  FIFLT = 31
 }
 
 impl Instruction {
   pub fn new(name: String) -> Result<(Self, usize), &'static str> {
     match name.as_ref() {
+      "nop" | "NOP" => Ok((Instruction::NOP, 1)),
       "mov" | "MOV" => Ok((Instruction::MOV, 3)),
       "add" | "ADD" => Ok((Instruction::ADD, 4)),
       "sub" | "SUB" => Ok((Instruction::SUB, 4)),
@@ -47,6 +60,17 @@ impl Instruction {
       "iflt" | "IFLT" => Ok((Instruction::IFLT, 3)),
       "call" | "CALL" => Ok((Instruction::CALL, 2)),
       "fmov" | "FMOV" => Ok((Instruction::FMOV, 3)),
+      "fadd" | "FADD" => Ok((Instruction::FADD, 4)),
+      "fsub" | "FSUB" => Ok((Instruction::FSUB, 4)),
+      "fmul" | "FMUL" => Ok((Instruction::FMUL, 4)),
+      "fdiv" | "FDIV" => Ok((Instruction::FDIV, 4)),
+      "fmod" | "FMOD" => Ok((Instruction::FMOD, 4)),
+      "fifeq" | "FIFEQ" => Ok((Instruction::FIFEQ, 3)),
+      "fifne" | "FIFNE" => Ok((Instruction::FIFNE, 3)),
+      "fifge" | "FIFGE" => Ok((Instruction::FIFGE, 3)),
+      "fifgt" | "FIFGT" => Ok((Instruction::FIFGT, 3)),
+      "fifle" | "FIFLE" => Ok((Instruction::FIFLE, 3)),
+      "fiflt" | "FIFLT" => Ok((Instruction::FIFLT, 3)),
       _ => Err("Invalid instruction")
     }
   }
@@ -56,6 +80,13 @@ impl Instruction {
       Instruction::JMP | Instruction::IFEQ | Instruction::IFNE |
       Instruction::IFLT | Instruction::IFLE | Instruction::IFGT |
       Instruction::IFGE | Instruction::CALL => true,
+      _ => false
+    }
+  }
+  
+  pub fn is_no_arg(&self) -> bool {
+    match self {
+      Instruction::NOP => true,
       _ => false
     }
   }

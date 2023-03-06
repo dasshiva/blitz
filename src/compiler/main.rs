@@ -15,7 +15,7 @@ fn main() {
     else if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
       println!("{s}");
     }
-  }));
+  })); 
   let args: Vec<String> = env::args().collect();
   if args.len() < 2 {
     panic!("Input file name needed");

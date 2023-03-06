@@ -70,6 +70,13 @@ impl Ins {
             let string = str_from_bytes(file)?;
             args.push(Args::STRING(string));
           }
+          'N' => {
+            return Ok(Self {
+              name,
+              sign,
+              args: None
+            });
+          }
           _ => unreachable!()
         }
       }
