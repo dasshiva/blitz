@@ -16,6 +16,3 @@ path = "src/runtime/main.rs"
 [dependencies]
 file-utils = "0.1.5"
 r9cc = { path = "r9cc"}
-
-[workspace]
-members = ["r9cc"]

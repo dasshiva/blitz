@@ -20,7 +20,8 @@ pub enum Instruction {
   IFGT = 16,
   IFLE = 17,
   IFLT = 18,
-  CALL = 19
+  CALL = 19,
+  FMOV = 20
 }
 
 impl Instruction {
@@ -45,6 +46,7 @@ impl Instruction {
       "ifle" | "IFLE" => Ok((Instruction::IFLE, 3)),
       "iflt" | "IFLT" => Ok((Instruction::IFLT, 3)),
       "call" | "CALL" => Ok((Instruction::CALL, 2)),
+      "fmov" | "FMOV" => Ok((Instruction::FMOV, 3)),
       _ => Err("Invalid instruction")
     }
   }
@@ -72,7 +74,7 @@ impl Args {
   pub fn new(token: &Token, defines: &Vec<Define>) -> Result<Self, &'static str> {
     match token {
       Token::IDENT(s) => {
-        if s.starts_with("r") {
+        if s.starts_with("r") || s.starts_with('f') {
           let id = match u8::from_str_radix(&s[1..], 10) {
             Ok(s) => s,
             Err(..) => return Err("Invalid register")
