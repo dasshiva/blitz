@@ -2,6 +2,7 @@ use std::env;
 use std::panic;
 mod verifier;
 mod runtime;
+mod memory;
 
 fn main() {
   /*panic::set_hook(Box::new(|panic_info| {

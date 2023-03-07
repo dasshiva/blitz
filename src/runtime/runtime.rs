@@ -1,4 +1,5 @@
 use crate::verifier::*;
+use crate::memory::{Memory, Arena};
 
 #[derive(Debug, Copy, Clone)]
 pub enum CpuStore {
@@ -37,6 +38,8 @@ impl From<&Args> for CpuStore {
 pub struct Runtime {
   cpu: Vec<i64>,
   fcpu: Vec<f64>,
+  stack: Arena,
+  mem: Memory,
   unit: Unit,
 }
 
@@ -48,9 +51,16 @@ impl Runtime {
       cpu.push(0);
       fcpu.push(0.0);
     }
+    let mut mem = match Memory::new(2 * 1024 * 1024) {
+        Ok(s) => s,
+        Err(e) => panic!("Failed to allocate memory {e}")
+    };
+    let stack = mem.alloc(4 * 1024);
     Self {
       cpu,
       fcpu,
+      mem,
+      stack,
       unit
     }
   }
