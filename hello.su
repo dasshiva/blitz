@@ -1,3 +1,4 @@
+.firmware
 include "cool.su"
 
 func main

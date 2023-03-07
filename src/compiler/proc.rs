@@ -119,7 +119,8 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
 
 pub struct Unit {
   pub name: String,
-  pub funcs: Vec<Function>
+  pub funcs: Vec<Function>,
+  pub attrs: Option<Vec<Attr>>
 }
 
 impl Unit {
@@ -142,7 +143,8 @@ impl Unit {
     }
     Unit {
       name: src.file,
-      funcs: parser.funcs
+      funcs: parser.funcs,
+      attrs: parser.attrs
     }
   }
   

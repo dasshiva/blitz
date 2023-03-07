@@ -31,11 +31,26 @@ fn write_bytes(file: &mut File, buf: &[u8]) -> Result<(), Error> {
   Ok(())
 }
 
+fn compute_flags_from_attrs(writer: &mut File, attrs: &Option<Vec<Attr>>) -> Result<(), Error> {
+  if attrs.is_none() {
+    writer.write_u16(0)?;
+    return Ok(());
+  }
+  let mut flag = 0u16;
+  for attr in attrs.as_ref().unwrap() {
+    match attr.0 {
+      Attrs::FIRMWARE => flag |= (1 << 0)
+    }
+  }
+  writer.write_u16(flag)
+}
+
 pub fn code_gen(unit: Unit) -> Result<(), Error> {
   let mut writer = File::create(unit.name.clone() + ".out")?;
   writer.write_u32(MAGIC)?;
   writer.write_u16(MAJOR)?;
   writer.write_u16(MINOR)?;
+  compute_flags_from_attrs(&mut writer, &unit.attrs)?;
   writer.write_u32(unit.funcs.len() as u32)?;
   for func in unit.funcs {
     let name = func.name.as_bytes();

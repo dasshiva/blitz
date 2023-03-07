@@ -112,6 +112,7 @@ impl Function {
 pub struct Unit {
   pub major: u16,
   pub minor: u16,
+  pub flags: u16,
   pub funcs: Vec<Function>
 }
 
@@ -131,6 +132,7 @@ impl Unit {
     if major != MAJOR || minor != MINOR {
       panic!("Unsupported blitz version {major}.{minor}");
     }
+    let flags = file.read_u16()?;
     let func_len = file.read_u32()?;
     let mut funcs: Vec<Function> = Vec::with_capacity(func_len as usize);
     for _ in 0..func_len {
@@ -139,6 +141,7 @@ impl Unit {
     Ok(Self {
       major,
       minor,
+      flags,
       funcs
     })
   }

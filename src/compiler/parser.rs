@@ -182,7 +182,7 @@ pub enum Attrs {
   FIRMWARE
 }
 
-pub struct Attr(Attrs, Option<Token>);
+pub struct Attr(pub Attrs, pub Option<Token>);
 impl Attr {
   pub fn file_new(name: &str, arg: Option<Token>) -> Result<Self, &'static str> {
     match name {
@@ -194,7 +194,6 @@ impl Attr {
 
 pub struct Function {
  pub name: String,
- pub attrs: Option<Vec<Attr>>,
  pub ins: Vec<Instr>
 }
 
@@ -206,8 +205,7 @@ impl Function {
     };
     Ok(Self {
       name,
-      ins: Vec::new(),
-      attrs: None
+      ins: Vec::new()
     })
   }
   
