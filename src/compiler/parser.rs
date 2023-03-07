@@ -178,8 +178,23 @@ impl Instr {
   }
 }
 
+pub enum Attrs {
+  FIRMWARE
+}
+
+pub struct Attr(Attrs, Option<Token>);
+impl Attr {
+  pub fn file_new(name: &str, arg: Option<Token>) -> Result<Self, &'static str> {
+    match name {
+      "firmware" => Ok(Self(Attrs::FIRMWARE, None)),
+      _ => Err ("Unknown attribute or attribute not expected here")
+    }
+  }
+}
+
 pub struct Function {
  pub name: String,
+ pub attrs: Option<Vec<Attr>>,
  pub ins: Vec<Instr>
 }
 
@@ -191,7 +206,8 @@ impl Function {
     };
     Ok(Self {
       name,
-      ins: Vec::new()
+      ins: Vec::new(),
+      attrs: None
     })
   }
   
@@ -205,6 +221,7 @@ pub struct Define(String, Token);
 pub struct Parser {
   define: Vec<Define>,
   labels: Vec<Define>,
+  pub attrs: Option<Vec<Attr>>,
   pub funcs: Vec<Function>,
   state: u8
 }
@@ -215,6 +232,7 @@ impl Parser {
       define: Vec::new(),
       funcs: Vec::new(),
       labels: Vec::new(),
+      attrs: None,
       state: 0u8
     }
   }
@@ -224,7 +242,7 @@ impl Parser {
       return Ok(());
     }
     if self.state == 0 {
-      match target[0] {
+      match &target[0] {
         Token::FUNC => {
           self.state = 2;
           if target.len() < 2 {
@@ -234,6 +252,16 @@ impl Parser {
             Ok(s) => self.funcs.push(s),
             Err(e) => return Err(e)
           }
+        }
+        Token::ATTR(s) => {
+          let attr = Attr::file_new(&s, target.get(1).cloned())?;
+          if self.attrs.is_none() {
+            let mut vector: Vec<Attr> = Vec::new();
+            vector.push(attr);
+            self.attrs = Some(vector);
+            return Ok(());
+          }
+          self.attrs.as_mut().unwrap().push(attr);
         }
         Token::INCLUDE => {
           if target.len() < 2 {

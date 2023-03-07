@@ -15,12 +15,17 @@ pub enum Token {
   STRING(String),
   IDENT(String),
   LABEL(String),
+  ATTR(String)
 }
 
 impl Token {
   pub fn new(token: &str) -> Self {
-    if token.chars().nth(0) == Some('\'') || token.chars().nth(0) == Some('\"') {
+    let first = token.chars().nth(0);
+    if first == Some('\'') || first == Some('\"') {
       return Token::STRING(token[1..].to_owned());
+    }
+    else if first == Some('.') {
+      return Token::ATTR(token[1..].to_owned());
     }
     if token.chars().nth(token.len() - 1) == Some(':') {
       return Token::LABEL(token[0..token.len()-1].to_string());
@@ -48,11 +53,20 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   let mut ret: Vec<Token> = Vec::new();
   let mut instr = false;
   let mut comm = false;
+  let mut attr = false;
   let mut buf = String::new();
   for ch in string {
     let c = *ch as char;
     match c {
       ' ' | '\n' => {
+        if c == ' ' && attr {
+          if buf.len() == 0 {
+            return Err("Attribute name expected");
+          }
+          attr = false;
+          ret.push(Token::new(&buf));
+          continue;
+        }
         if buf.len() == 0 || instr {
           buf.push(c);
           continue;
@@ -62,6 +76,14 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
           break;
         }
         buf.clear();
+      }
+      '.' => {
+        if buf.len() != 0 {
+          buf.push(c);
+          continue;
+        }
+        buf.push(c);
+        attr = true;
       }
       '/' => {
         if comm {
