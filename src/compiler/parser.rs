@@ -33,7 +33,11 @@ pub enum Instruction {
   FIFGE = 28,
   FIFGT = 29,
   FIFLE = 30,
-  FIFLT = 31
+  FIFLT = 31,
+  FPUSH = 32,
+  FPOP = 33,
+  PUSH = 34,
+  POP = 35
 }
 
 impl Instruction {
@@ -71,6 +75,10 @@ impl Instruction {
       "fifgt" | "FIFGT" => Ok((Instruction::FIFGT, 3)),
       "fifle" | "FIFLE" => Ok((Instruction::FIFLE, 3)),
       "fiflt" | "FIFLT" => Ok((Instruction::FIFLT, 3)),
+      "fpush" | "FPUSH" => Ok((Instruction::FPUSH, 2)),
+      "fpop" | "FPOP" => Ok((Instruction::FPOP, 2)),
+      "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
+      "pop" | "POP" => Ok((Instruction::FPUSH, 2)),
       _ => Err("Invalid instruction")
     }
   }

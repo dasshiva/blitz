@@ -1,5 +1,5 @@
 use crate::verifier::*;
-use crate::memory::{Memory, Arena};
+use crate::memory::{Memory, ResArea, Stack};
 
 #[derive(Debug, Copy, Clone)]
 pub enum CpuStore {
@@ -38,8 +38,8 @@ impl From<&Args> for CpuStore {
 pub struct Runtime {
   cpu: Vec<i64>,
   fcpu: Vec<f64>,
-  stack: Arena,
   mem: Memory,
+  sp: Stack,
   unit: Unit,
 }
 
@@ -55,12 +55,14 @@ impl Runtime {
         Ok(s) => s,
         Err(e) => panic!("Failed to allocate memory {e}")
     };
-    let stack = mem.alloc(4 * 1024);
+    let area = ResArea(String::from("stack"), 0x400, 0x400 + (4 * 1024));
+    let sp = Stack::new(&area);
+    mem.new_reserved_area(area);
     Self {
       cpu,
       fcpu,
       mem,
-      stack,
+      sp,
       unit
     }
   }
@@ -166,6 +168,10 @@ impl Runtime {
             continue;
           }
         }
+        34 => {
+          let args = ins.args.as_ref().unwrap();
+          let arg1 = i64::from(self.iget(&ins.sign[0..1], &args[0]));
+        }
         _ => panic!("Invalid or unimplemented opcode {}", ins.name)
       }
       pc += 1;
@@ -218,7 +224,6 @@ fn calc_dec(arg1: f64, arg2: f64, mode: u16) -> CpuStore {
     2 => CpuStore::DECIMAL(arg1 * arg2),
     3 => CpuStore::DECIMAL(arg1 / arg2),
     4 => CpuStore::DECIMAL(arg1 % arg2),
-    5..=9 => panic!("Bitwise operators are not allowed on decimal operands"),
     _ => unreachable!()
   }
 }
