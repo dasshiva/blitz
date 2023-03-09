@@ -363,6 +363,7 @@ impl Parser {
       }
     }
     else if self.state == 2 {
+      println!("{:?}", target[0]);
       match &target[0] {
         Token::IDENT(s) => {
           let mut this_func = self.funcs.pop().unwrap();
