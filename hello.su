@@ -3,9 +3,6 @@ include "cool.su"
 
 func main
   nop
-  mov r0, 10
-  fmov f0, 1.0
-  fadd f0, f0, 5.0
-  fifeq f0, 6.0
-  call low
+  lea r0, [sp + 4]
+  mov [r0], r9
 end

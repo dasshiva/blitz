@@ -1,6 +1,20 @@
 extern crate mmap_rs;
 use mmap_rs::{MmapOptions, MmapFlags, MmapMut, Error};
 
+pub fn i64_to_bytes(value: i64) -> [u8; 8] {
+  let mut arr = [0; 8];
+  let val = unsafe { std::mem::transmute::<i64, u64>(value) };
+  arr[0] = (val >> 56) as u8;
+  arr[1] = (val >> 48) as u8;
+  arr[2] = (val >> 40) as u8;
+  arr[3] = (val >> 32) as u8;
+  arr[4] = (val >> 24) as u8;
+  arr[5] = (val >> 16) as u8;
+  arr[6] = (val >> 8) as u8;
+  arr[7] = (val >> 0) as u8;
+  arr
+}
+
 #[derive(Clone)]
 pub struct ResArea(pub String, pub usize, pub usize);
 
@@ -48,7 +62,7 @@ impl Memory {
 }
 
 pub struct Stack {
-  top: usize,
+  pub top: usize,
   beg: usize,
   end: usize,
 }
@@ -59,9 +73,43 @@ impl Stack {
       unreachable!()
     }
     Self {
-      top: 0,
+      top: area.1,
       beg: area.1,
       end: area.2
+    }
+  }
+  
+  pub fn push(&mut self, value: i64, mem: &mut Memory) {
+    if self.top + 8 > self.end {
+      panic!("Stack overflow");
+    }
+    let arr = i64_to_bytes(value);
+    mem.write(self.top, &arr);
+    self.top += 8;
+  }
+  
+  pub fn pop(&mut self, mem: &Memory) -> i64 {
+    if self.top - 8 < self.beg {
+      panic!("Stack underflow");
+    }
+    self.top -= 8;
+    let array = mem.read(self.top, 8);
+    let mut copy = [0u8; 8];
+    for i in 0..8 {
+      copy[i] = array[i];
+    }
+    i64::from_be_bytes(copy)
+  }
+  
+  pub fn pushf(&mut self, val: f64, mem: &mut Memory) {
+    let value = unsafe { std::mem::transmute::<f64, i64>(val) };
+    self.push(value, mem);
+  }
+  
+  pub fn popf(&mut self, mem: &Memory) -> f64 {
+    let value = self.pop(mem);
+    unsafe {
+      std::mem::transmute::<i64, f64>(value)
     }
   }
 }

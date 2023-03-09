@@ -1,5 +1,5 @@
 use crate::verifier::*;
-use crate::memory::{Memory, ResArea, Stack};
+use crate::memory::{Memory, ResArea, Stack, i64_to_bytes};
 
 #[derive(Debug, Copy, Clone)]
 pub enum CpuStore {
@@ -47,7 +47,7 @@ impl Runtime {
   pub fn new(unit: Unit) -> Self {
     let mut cpu: Vec<i64> = Vec::new();
     let mut fcpu: Vec<f64> = Vec::new();
-    for _ in 0..30 {
+    for _ in 0..32 {
       cpu.push(0);
       fcpu.push(0.0);
     }
@@ -70,6 +70,7 @@ impl Runtime {
   pub fn run(&mut self, name: &str, mut pc: usize) {
     let mut index = -1;
     let mut tocall: Option<String> = None;
+    self.cpu[31] = unsafe { std::mem::transmute::<usize, i64>(self.sp.top) };
     for i in 0..self.unit.funcs.len() {
       if self.unit.funcs[i].name == name {
         index = i as isize;
@@ -86,6 +87,16 @@ impl Runtime {
         0 => {}
         1 => {
           let args = ins.args.as_ref().unwrap();
+          match args[0] {
+            Args::OFFSET(reg, ..) => {
+              let store = unsafe { std::mem::transmute::<i64, usize>(self.cpu[reg as usize]) };
+              let arg = i64_to_bytes(self.iget(&ins.sign[1..], &args[1]).into());
+              self.mem.write(store, &arg);
+              pc += 1;
+              continue;
+            }
+            _ => {}
+          }
           let reg = args[0].get_reg_num() as usize;
           let arg = self.iget(&ins.sign[1..], &args[1]);
           self.cpu[reg] = i64::from(arg);
@@ -168,9 +179,40 @@ impl Runtime {
             continue;
           }
         }
+        32 => {
+          let args = ins.args.as_ref().unwrap();
+          let arg1 = f64::from(self.fget(&ins.sign[0..1], &args[0]));
+          self.sp.pushf(arg1, &mut self.mem);
+          self.cpu[31] = unsafe { std::mem::transmute::<usize, i64>(self.sp.top) };
+        }
+        33 => {
+          let args = ins.args.as_ref().unwrap();
+          let reg = args[0].get_reg_num() as usize;
+          self.fcpu[reg] = self.sp.popf(&self.mem);
+          self.cpu[31] = unsafe { std::mem::transmute::<usize, i64>(self.sp.top) };
+        }
         34 => {
           let args = ins.args.as_ref().unwrap();
           let arg1 = i64::from(self.iget(&ins.sign[0..1], &args[0]));
+          self.sp.push(arg1, &mut self.mem);
+          self.cpu[31] = unsafe { std::mem::transmute::<usize, i64>(self.sp.top) };
+        }
+        35 => {
+          let args = ins.args.as_ref().unwrap();
+          let reg = args[0].get_reg_num() as usize;
+          self.cpu[reg] = self.sp.pop(&self.mem);
+          self.cpu[31] = unsafe { std::mem::transmute::<usize, i64>(self.sp.top) };
+        }
+        36 => {
+          let args = ins.args.as_ref().unwrap();
+          let target = args[0].get_reg_num() as usize;
+          match args[1] {
+            Args::OFFSET(reg, off) => {
+              let store = unsafe { std::mem::transmute::<i64, usize>(self.cpu[reg as usize] + off) };
+              self.cpu[target] = unsafe { std::mem::transmute::<usize, i64>(store) };
+            }
+            _ => panic!("Invalid argument to lea")
+          }
         }
         _ => panic!("Invalid or unimplemented opcode {}", ins.name)
       }

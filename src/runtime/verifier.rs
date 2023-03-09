@@ -21,7 +21,8 @@ pub enum Args {
   INT(i64),
   DECIMAL(f64),
   REGISTER(u8),
-  STRING(String)
+  STRING(String),
+  OFFSET(u8, i64)
 }
 
 impl Args {
@@ -76,6 +77,11 @@ impl Ins {
               sign,
               args: None
             });
+          }
+          'O' => {
+            let reg = file.read_u8()?;
+            let off = file.read_i64()?;
+            args.push(Args::OFFSET(reg, off));
           }
           _ => unreachable!()
         }

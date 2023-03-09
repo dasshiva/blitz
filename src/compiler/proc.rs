@@ -15,7 +15,10 @@ pub enum Token {
   STRING(String),
   IDENT(String),
   LABEL(String),
-  ATTR(String)
+  ATTR(String),
+  PLUS,
+  MINUS,
+  OFFSET(String)
 }
 
 impl Token {
@@ -26,6 +29,9 @@ impl Token {
     }
     else if first == Some('.') {
       return Token::ATTR(token[1..].to_owned());
+    }
+    else if first == Some('[') {
+      return Token::OFFSET(token[1..].to_owned());
     }
     if token.chars().nth(token.len() - 1) == Some(':') {
       return Token::LABEL(token[0..token.len()-1].to_string());
@@ -54,6 +60,7 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   let mut instr = false;
   let mut comm = false;
   let mut attr = false;
+  let mut inexpr = false;
   let mut buf = String::new();
   for ch in string {
     let c = *ch as char;
@@ -67,7 +74,13 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
           ret.push(Token::new(&buf));
           continue;
         }
-        if buf.len() == 0 || instr {
+        if buf.len() == 0 {
+          if c == ' ' {
+            continue;
+          }
+          break;
+        }
+        if instr || inexpr {
           buf.push(c);
           continue;
         }
@@ -84,6 +97,45 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
         }
         buf.push(c);
         attr = true;
+      }
+      '[' => {
+        if inexpr {
+          panic!("Nested offsets are not allowed");
+        }
+        if buf.len() != 0 {
+            ret.push(Token::new(&buf));
+        }
+        inexpr = true;
+        buf.push(c);
+      }
+      '+' => {
+        if inexpr {
+          buf.push(c);
+          continue;
+        }
+        if buf.len() != 0 {
+            ret.push(Token::new(&buf));
+        }
+        ret.push(Token::PLUS);
+      }
+      '-' => {
+        if inexpr {
+          buf.push(c);
+          continue;
+        }
+        if buf.len() != 0 {
+            ret.push(Token::new(&buf));
+        }
+        ret.push(Token::MINUS);
+      }
+      ']' => {
+        inexpr = false;
+        if buf.len() == 0 {
+          panic!("Empty offset");
+        }
+        ret.push(Token::new(&buf));
+        buf.clear();
+        //println!("{ret:?}");
       }
       '/' => {
         if comm {
@@ -113,6 +165,9 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
   }
   if comm {
     return Err("Unclosed comment");
+  }
+  if inexpr {
+    return Err("Unclosed offset");
   }
   Ok(ret)
 }

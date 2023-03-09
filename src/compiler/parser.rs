@@ -37,7 +37,8 @@ pub enum Instruction {
   FPUSH = 32,
   FPOP = 33,
   PUSH = 34,
-  POP = 35
+  POP = 35,
+  LEA = 36
 }
 
 impl Instruction {
@@ -78,7 +79,8 @@ impl Instruction {
       "fpush" | "FPUSH" => Ok((Instruction::FPUSH, 2)),
       "fpop" | "FPOP" => Ok((Instruction::FPOP, 2)),
       "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
-      "pop" | "POP" => Ok((Instruction::FPUSH, 2)),
+      "pop" | "POP" => Ok((Instruction::POP, 2)),
+      "lea" | "LEA" => Ok((Instruction::LEA, 3)),
       _ => Err("Invalid instruction")
     }
   }
@@ -87,7 +89,7 @@ impl Instruction {
     match self {
       Instruction::JMP | Instruction::IFEQ | Instruction::IFNE |
       Instruction::IFLT | Instruction::IFLE | Instruction::IFGT |
-      Instruction::IFGE | Instruction::CALL => true,
+      Instruction::IFGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV => true,
       _ => false
     }
   }
@@ -106,7 +108,8 @@ pub enum Args {
   DECIMAL(f64),
   STRING(String),
   LABEL(String),
-  REGISTER(u8)
+  REGISTER(u8),
+  OFFSET(u8, i64),
 }
 
 impl Args {
@@ -123,12 +126,55 @@ impl Args {
           }
           return Err("Invalid register number");
         }
+        else if s == "sp" {
+          return Ok(Args::REGISTER(31));
+        }
         for def in defines {
           if s == &def.0 {
             return Args::new(&def.1, defines);
           }
         }
         return Ok(Args::LABEL(s.to_string()));
+      }
+      Token::OFFSET(s) => {
+        let mut arg = s.to_string();
+        arg.push(' ');
+        let split = match line_split(&arg.as_bytes()) {
+          Ok(s) => s,
+          Err(..) => unreachable!()
+        };
+        let mut reg = 0u8;
+        match &split[0] {
+          Token::IDENT(i) => {
+            match Args::new(&split[0], defines)? {
+              Args::REGISTER(r) => reg = r,
+              _ => return Err("First argument to offset must be register")
+            }
+          }
+          _ => return Err("First argument to offset must be register")
+        }
+        
+        if split.len() == 1 {
+          return Ok(Args::OFFSET(reg, 0));
+        }
+        
+        if split.len() < 3 {
+          panic!("Offset argument incomplete");
+        }
+        
+        let number = match &split[2] {
+          Token::INT(s) => *s,
+          _ => panic!("Offset must be int")
+        };
+        match &split[1] {
+          Token::PLUS => {
+            return Ok(Args::OFFSET(reg, number));
+          }
+          Token::MINUS => {
+            return Ok(Args::OFFSET(reg, -number));
+          }
+          _ => return Err("Only operator + or - allowed in offset")
+        }
       }
       Token::INT(i) => Ok(Args::INT(*i)),
       Token::DECIMAL(j) => Ok(Args::DECIMAL(*j)),
@@ -171,7 +217,10 @@ impl Instr {
     for arg in args {
       let ar = Args::new(arg, defines)?;
       match ar {
-        Args::LABEL(..) => self.has_label = true,
+        Args::LABEL(..) => {
+        println!("{arg:?}");
+        self.has_label = true;
+        }
         _ => {}
       }
       self.args.as_mut().unwrap().push(ar);

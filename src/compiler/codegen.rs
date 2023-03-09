@@ -17,6 +17,7 @@ fn compute_flags(ins: &Instr) -> Vec<u8> {
       Args::INT(..) => ret.push('I' as u8),
       Args::DECIMAL(..) => ret.push('D' as u8),
       Args::STRING(..) => ret.push('S' as u8),
+      Args::OFFSET(..) => ret.push('O' as u8),
       _ => unreachable!()
     }
   }
@@ -70,6 +71,10 @@ pub fn code_gen(unit: Unit) -> Result<(), Error> {
           Args::INT(i) => writer.write_i64(*i)?,
           Args::DECIMAL(d) => writer.write_f64(*d)?,
           Args::STRING(s) => write_bytes(&mut writer, &s.as_bytes())?,
+          Args::OFFSET(reg, off) => {
+            writer.write_u8(*reg)?;
+            writer.write_i64(*off)?;
+          }
           _ => unreachable!()
         }
       }
