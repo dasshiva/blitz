@@ -36,8 +36,10 @@ impl Memory {
   }
   
   pub fn new_reserved_area(&mut self, area: ResArea) {
-    if area.2 > 0x1500 {
-      panic!("Reserved area cannot be created over 0x1500")
+    for i in &self.resarea {
+      if i.1 >= area.1 && i.2 <= area.2 {
+        panic!("Reserved area {} and {} overlap with each other", i.0, area.0);
+      }
     }
     self.resarea.push(area);
   }
