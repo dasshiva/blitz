@@ -218,8 +218,7 @@ impl Instr {
       let ar = Args::new(arg, defines)?;
       match ar {
         Args::LABEL(..) => {
-        println!("{arg:?}");
-        self.has_label = true;
+         self.has_label = true;
         }
         _ => {}
       }

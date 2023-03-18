@@ -2,7 +2,6 @@
 include "cool.su"
 
 func main
-  nop
-  lea r0, [sp + 4]
-  mov [r0], r9
+  mov r0, 90
+  call low
 end

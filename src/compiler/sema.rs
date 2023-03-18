@@ -15,17 +15,18 @@ pub struct Header {
 
 type Args = (Option<i64>, Option<f64>);
 pub struct Ins {
-  ins: u32,
-  args: Vec<Args>,
-  size: usize
+  pub opcode: u32,
+  pub args: Vec<Args>,
+  pub size: usize
 }
 
 pub struct Func {
-  ins: Vec<Ins>,
-  size: usize
+  pub ins: Vec<Ins>,
+  pub size: usize
 }
 
 pub struct SemUnit {
+  pub name: String,
   pub header: Header,
   pub funcs: Vec<Func>,
 }
@@ -35,9 +36,10 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
     magic: MAGIC,
     major: MAJOR,
     minor: MINOR,
-    start: 16
+    start: 15
   };
   let mut offset = 16usize;
+  let mut offset_table: Vec<(usize, String)> = Vec::new();
   let mut funcs: Vec<Func> = Vec::new();
   for func in &unit.funcs {
     let mut f: Vec<Ins> = Vec::new();
@@ -47,7 +49,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
       let mut opcode = (ins.name as u32) << 16;
       if ins.len == 1 {
         f.push(Ins {
-          ins: opcode,
+          opcode,
           args: Vec::new(),
           size: 4
         });
@@ -63,24 +65,50 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
           INT(i) => {
             args_vec.push((Some(*i), None));
             ins_size += 8;
-            opcode |= (31 << chunk);
+            opcode |= 30 << chunk;
             chunk -= 5;
           }
           DECIMAL(d) => {
             args_vec.push((None, Some(*d)));
             ins_size += 8;
-            opcode |= (32 << chunk);
+            opcode |= 31 << chunk;
             chunk -= 5;
           }
           REGISTER(r) => {
-            opcode |= ((*r as u32) << chunk);
+            opcode |= (*r as u32) << chunk;
             chunk -= 5;
           }
-          _ => todo!()
+          OFFSET(reg, off) => {
+            let arg: u64 = ((*reg as u64) << 59) | (*off as u64);
+            let actual= unsafe { std::mem::transmute::<u64, i64>(arg) };
+            ins_size += 8;
+            opcode |= 29 << chunk;
+            chunk -= 5;
+            args_vec.push((Some(actual), None));
+          }
+          STRING(s) => {
+            let mut found = false;
+            for i in &offset_table {
+              if &i.1 == s {
+                let off = unsafe { std::mem::transmute::<usize, i64>(i.0) };
+                args_vec.push((Some(off), None));
+                ins_size += 8;
+                opcode |= 31 << chunk;
+                chunk -= 5;
+                found = true;
+                break;
+              }
+            }
+            
+            if !found {
+              panic!("Function {s} not found");
+            }
+          }
+          _ => unreachable!()
         }
       }
       f.push(Ins {
-       ins: opcode,
+       opcode,
        args: args_vec,
        size: ins_size
       });
@@ -89,6 +117,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
     if func.name == "main" || func.name == "_start" {
       header.start = offset;
     }
+    offset_table.push((offset, func.name.clone()));
     offset += size;
     funcs.push(Func {
       ins: f,
@@ -96,7 +125,12 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
     });
   }
   
+  if header.start == 15 {
+    panic!("No main function found");
+  }
+  
   SemUnit {
+    name: unit.name,
     header,
     funcs
   }
