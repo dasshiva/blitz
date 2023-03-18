@@ -4,6 +4,7 @@ mod file;
 use file::Handle;
 mod r#proc;
 mod parser;
+mod sema;
 mod codegen;
 use r#proc::Unit;
 
@@ -20,8 +21,5 @@ fn main() {
   if args.len() < 2 {
     panic!("Input file name needed");
   }
-  match codegen::code_gen(Unit::new(Handle::new(&args[1]))) {
-    Ok(..) => {},
-    Err(e) => panic!("{e}")
-  }
+  sema::sem_analyse(Unit::new(Handle::new(&args[1])));
 }

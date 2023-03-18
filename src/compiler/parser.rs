@@ -121,13 +121,13 @@ impl Args {
             Ok(s) => s,
             Err(..) => return Err("Invalid register")
           };
-          if id <= 30 {
+          if id <= 25 {
             return Ok(Args::REGISTER(id));
           }
           return Err("Invalid register number");
         }
         else if s == "sp" {
-          return Ok(Args::REGISTER(31));
+          return Ok(Args::REGISTER(26));
         }
         for def in defines {
           if s == &def.0 {

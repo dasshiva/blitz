@@ -19,6 +19,6 @@ pub fn load(name: &str, mem: &mut Memory) -> Result<(), Error> {
   if major != MAJOR || minor != MINOR {
     panic!("Unsupported blitz version {major}.{minor}");
   }
-  let resarea = ResArea("Code", 0x1000
+  //let resarea = ResArea("Code", 0x1000, 
   Ok(())
 }
