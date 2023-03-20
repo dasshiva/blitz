@@ -16,7 +16,7 @@ impl Memory {
       Err(e) => panic!("Error allocating memory {e}")
    };
     Self {
-      mem: MmapMut,
+      mem,
       size,
       areas: Vec::new()
     }
