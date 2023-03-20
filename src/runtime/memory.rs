@@ -1,43 +1,75 @@
-pub struct Limits {
-  pub code_start: usize,
-  pub code_end: usize,
-  pub data_start: usize,
-  pub data_end: usize,
-  pub stack_start: usize,
-  pub stack_end: usize,
-  pub heap_start: usize,
-  pub heap_end: usize
-}
+extern crate mmap_rs;
+use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
+static SIZE: usize = 2 * 1024 * 1024;
 
-impl Limits {
-  pub fn new(size: usize) -> Self {
-    let code_start = 0;
-    let code_end = (40 * size) / 100;
-    let data_start = code_end + 1;
-    let data_end = data_start + (10 * size) / 100;
-    let stack_start = data_end + 1;
-    let stack_end = stack_start + (20 * size) / 100;
-    let heap_start = stack_end + 1;
-    let heap_end = size;
-    Self {
-      code_start,
-      code_end,
-      data_start,
-      data_end,
-      stack_start,
-      stack_end,
-      heap_start,
-      heap_end
-    }
-  }
-}
-
+struct ResArea(pub String, pub usize, pub usize);
 pub struct Memory {
-  mem: Vec<u8>,
+  mem: MmapMut,
   size: usize,
-  limits: Limits
+  areas: Vec<ResArea>
 }
 
 impl Memory {
+  pub fn new(size: usize) -> Self {
+   let mut mem = match MmapOptions::new(size).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
+      Ok(s) => s,
+      Err(e) => panic!("Error allocating memory {e}")
+   };
+    Self {
+      mem: MmapMut,
+      size,
+      areas: Vec::new()
+    }
+  }
   
+  fn new_area(&mut self, name: &str, start: usize, end: usize) {
+    let area = ResArea(name.to_string(), start, end);
+    self.areas.push(area);
+  }
+  
+  pub fn write(&mut self, area: &str, mut offset: usize, buf: &[u8]) {
+    for i in &self.areas {
+      if i.0 == area {
+         if i.1 > offset || i.2 < offset {
+           panic!("Offset to write is beyond region {area}'s limits");
+         }
+         if i.2 - i.1 + 1 < buf.len() {
+           panic!("Writing beyond the limits of region {area}");
+         }
+         for i in buf {
+           self.mem[offset] = *i;
+           offset += 1;
+         }
+         return;
+      }
+    }
+    
+    panic!("Memory region {area} not found");
+  }
+  
+  pub fn read(&self, area: &str, offset: usize, len: usize) -> &[u8] {
+    for i in &self.areas {
+      if i.0 == area {
+         if i.1 > offset || i.2 < offset {
+           panic!("Offset to read is beyond region {area}'s limits");
+         }
+         if i.2 - i.1 + 1 < len {
+           panic!("Reading beyond the limits of region {area}");
+         }
+         return &self.mem[offset..(offset + len)];
+      }
+    }
+    
+    panic!("Memory region {area} not found")
+  }
+  
+  pub fn init(code: &[u8]) -> Self {
+    let mut mem = Memory::new(SIZE);
+    mem.new_area("Code", 0x00000, 0x7DFFF);
+    mem.write("Code", 0x00000, code);
+    mem.new_area("Data", 0x7E000, 0xFDFFF);
+    mem.new_area("Stack", 0xFE000, 0xFFFFF);
+    mem.new_area("Heap", 0xFF000, SIZE - 1);
+    mem
+  }
 }
