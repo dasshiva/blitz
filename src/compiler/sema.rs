@@ -93,7 +93,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
                 let off = unsafe { std::mem::transmute::<usize, i64>(i.0) };
                 args_vec.push((Some(off), None));
                 ins_size += 8;
-                opcode |= 31 << chunk;
+                opcode |= 30 << chunk;
                 chunk -= 5;
                 found = true;
                 break;

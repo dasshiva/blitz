@@ -23,7 +23,7 @@ fn main() {
     Ok(s) => s,
     Err(e) => panic!("Error: {e}")
   };
-  let mut memory = Memory::init(&file);
+  let memory = Memory::init(&file);
   let mut cpu = Cpu::init(memory);
   cpu.exec();
 }
