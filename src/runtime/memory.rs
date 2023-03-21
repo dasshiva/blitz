@@ -11,7 +11,7 @@ pub struct Memory {
 
 impl Memory {
   pub fn new(size: usize) -> Self {
-   let mut mem = match MmapOptions::new(size).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
+   let mem = match MmapOptions::new(size).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
       Ok(s) => s,
       Err(e) => panic!("Error allocating memory {e}")
    };

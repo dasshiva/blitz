@@ -15,7 +15,7 @@ enum Args {
   INT(u64),
   DECIMAL(f64),
   OFFSET(u8, u64),
-  REG(u8)
+  REG(u8),
 }
 
 impl Args {
@@ -47,6 +47,7 @@ impl Args {
     }
   }
 }
+
 fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
   match value {
     0..=26 => Args::REG(value),
@@ -78,7 +79,7 @@ fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   let arg = (ins & 0xFFFF) as u16;
   let arg1 = (arg >> 11) as u8;
   let arg2 = ((arg >> 6) & 31) as u8;
-  let arg3 = ((arg >> 1) & 63) as u8;
+  let arg3 = ((arg >> 1) & 31) as u8;
   pc += 4;
   args_vec.push(read_args(arg1, code, &mut pc));
   args_vec.push(read_args(arg2, code, &mut pc));
@@ -124,11 +125,38 @@ impl Cpu {
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     loop {
       let ins = utils::make_u32(&code[pc..(pc + 4)]);
+      let opcode = ins >> 16;
       let (args, new) = decode(ins, code, pc);
-      match ins >> 16 {
+      match opcode {
         1 => {
           let reg = args[0].get_reg() as usize;
           self.regs[reg] = args[1].get_int() as usize;
+        }
+        2..=11 => {
+          let reg = args[0].get_reg() as usize;
+          let arg1 = match &args[1] {
+            Args::INT(s) => *s as usize,
+            Args::REG(r) => self.regs[*r as usize],
+            _ => unreachable!()
+          };
+          let arg2 = match &args[2] {
+            Args::INT(s) => *s as usize,
+            Args::REG(r) => self.regs[*r as usize],
+            _ => unreachable!()
+          };
+          match opcode - 2 {
+            0 => self.regs[reg] = arg1 + arg2,
+            1 => self.regs[reg] = arg1 - arg2,
+            2 => self.regs[reg] = arg1 * arg2,
+            3 => self.regs[reg] = arg1 / arg2,
+            4 => self.regs[reg] = arg1 % arg2,
+            5 => self.regs[reg] = arg1 | arg2,
+            6 => self.regs[reg] = arg1 & arg2,
+            7 => self.regs[reg] = arg1 ^ arg2,
+            8 => self.regs[reg] = arg1 << arg2,
+            9 => self.regs[reg] = arg1 >> arg2,
+            _ => unreachable!()
+          }
         }
         37 => return,
         _ => panic!("Invalid instruction {}", ins >> 16)
