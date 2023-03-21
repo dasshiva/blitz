@@ -38,7 +38,8 @@ pub enum Instruction {
   FPOP = 33,
   PUSH = 34,
   POP = 35,
-  LEA = 36
+  LEA = 36,
+  RET = 37
 }
 
 impl Instruction {
@@ -81,6 +82,7 @@ impl Instruction {
       "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
       "pop" | "POP" => Ok((Instruction::POP, 2)),
       "lea" | "LEA" => Ok((Instruction::LEA, 3)),
+      "ret" | "RET" => Ok((Instruction::RET, 1)),
       _ => Err("Invalid instruction")
     }
   }

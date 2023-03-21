@@ -10,13 +10,43 @@ pub struct Cpu {
   memory: Memory,
 }
 
+#[derive(Debug)]
 enum Args {
-  INT(i64),
-  DOUBLE(f64),
+  INT(u64),
+  DECIMAL(f64),
   OFFSET(u8, u64),
   REG(u8)
 }
 
+impl Args {
+  pub fn get_reg(&self) -> u8 {
+    match self {
+      Args::REG(reg) => *reg,
+      _ => panic!("Not a register!")
+    }
+  }
+  
+  pub fn get_int(&self) -> u64 {
+    match self {
+      Args::INT(val) => *val,
+      _ => panic!("Not an integer!")
+    }
+  }
+  
+  pub fn get_decimal(&self) -> f64 {
+    match self {
+      Args::DECIMAL(val) => *val,
+      _ => panic!("Not a float!")
+    }
+  }
+  
+  pub fn get_off(&self) -> (u8, u64) {
+    match self {
+      Args::OFFSET(reg, off) => (*reg, *off),
+      _ => panic!("Not an integer!")
+    }
+  }
+}
 fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
   match value {
     0..=26 => Args::REG(value),
@@ -30,8 +60,7 @@ fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
     30 => {
       let num = utils::make_u64(&code[*offset..(*offset + 8)]);
       *offset += 8;
-      let arg = unsafe { std::mem::transmute::<u64, i64>(num) };
-      Args::INT(arg)
+      Args::INT(num)
     }
     31 => {
       let num = utils::make_u64(&code[*offset..(*offset + 8)]);
@@ -39,22 +68,23 @@ fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
       let arg = unsafe { std::mem::transmute::<u64, f64>(num) };
       Args::DECIMAL(arg)
     }
-    _ => panic!("Unknown instruction argument!");
+    _ => panic!("Unknown instruction argument {value}")
   }
 }
 
-fn decode(ins: u32, code: &[u8], offset: usize) -> usize {
+fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   let mut pc = offset;
-  let mut args_vec: Vec<Args> = Vec::new();
+  let mut args_vec: Vec<Args> = Vec::with_capacity(3);
   let arg = (ins & 0xFFFF) as u16;
   let arg1 = (arg >> 11) as u8;
   let arg2 = ((arg >> 6) & 31) as u8;
   let arg3 = ((arg >> 1) & 63) as u8;
+  pc += 4;
   args_vec.push(read_args(arg1, code, &mut pc));
   args_vec.push(read_args(arg2, code, &mut pc));
   args_vec.push(read_args(arg3, code, &mut pc));
   println!("{args_vec:?}");
-  pc
+  (args_vec, pc)
 }
 
 impl Cpu {
@@ -94,11 +124,16 @@ impl Cpu {
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     loop {
       let ins = utils::make_u32(&code[pc..(pc + 4)]);
-      decode(ins, code, pc);
-      break;
-     /* match ins >> 16 {
-        1 => 
-      } */
+      let (args, new) = decode(ins, code, pc);
+      match ins >> 16 {
+        1 => {
+          let reg = args[0].get_reg() as usize;
+          self.regs[reg] = args[1].get_int() as usize;
+        }
+        37 => return,
+        _ => panic!("Invalid instruction {}", ins >> 16)
+      }
+      pc = new;
     }
   }
 }
