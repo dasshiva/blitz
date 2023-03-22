@@ -102,7 +102,6 @@ pub enum Args {
   INT(i64),
   DECIMAL(f64),
   STRING(String),
-  LABEL(String),
   REGISTER(u8),
   OFFSET(u8, i64),
 }
@@ -129,7 +128,7 @@ impl Args {
             return Args::new(&def.1, defines);
           }
         }
-        return Ok(Args::LABEL(s.to_string()));
+        return Ok(Args::STRING(s.to_string()));
       }
       Token::OFFSET(s) => {
         let mut arg = s.to_string();
@@ -183,7 +182,6 @@ impl Args {
 pub struct Instr {
   pub name: Instruction,
   pub len: usize,
-  pub has_label: bool,
   pub args: Option<Vec<Args>>
 }
 
@@ -192,7 +190,6 @@ impl Instr {
     let (ins, len) = Instruction::new(name)?;
     Ok(Self {
       name: ins,
-      has_label: false,
       len,
       args: {
         if len != 1 {
@@ -211,12 +208,6 @@ impl Instr {
     }
     for arg in args {
       let ar = Args::new(arg, defines)?;
-      match ar {
-        Args::LABEL(..) => {
-         self.has_label = true;
-        }
-        _ => {}
-      }
       self.args.as_mut().unwrap().push(ar);
     }
     if !self.name.is_farg_nreg() {
@@ -269,7 +260,6 @@ pub struct Define(String, Token);
 
 pub struct Parser {
   define: Vec<Define>,
-  labels: Vec<Define>,
   pub attrs: Option<Vec<Attr>>,
   pub funcs: Vec<Function>,
   state: u8
@@ -280,13 +270,14 @@ impl Parser {
     Self {
       define: Vec::new(),
       funcs: Vec::new(),
-      labels: Vec::new(),
       attrs: None,
       state: 0u8
     }
   }
   
   pub fn parse(&mut self, target: Vec<Token>) -> Result<(), &str> {
+    let mut inlabel = true;
+    let mut label = Function::new(&Token::IDENT("".to_string()))?;
     if target.len() == 0 {
       return Ok(());
     }
@@ -359,63 +350,37 @@ impl Parser {
     else if self.state == 2 {
       match &target[0] {
         Token::IDENT(s) => {
-          let mut this_func = self.funcs.pop().unwrap();
+          let mut this_func: Function;
+          if !inlabel {
+            this_func = self.funcs.pop().unwrap();
+          }
+          else {
+            this_func = label;
+          }
           let mut ins = Instr::new(s.to_owned())?;
           if ins.len != 1 {
             ins.add_args(&target[1..], &self.define)?;
           }
           this_func.add_ins(ins);
           self.funcs.push(this_func);
-        },
+        }
         Token::LABEL(s) => {
-          let func = self.funcs.pop().unwrap();
-          self.labels.push(Define(s.to_string(), Token::INT(func.ins.len() as i64)));
-          self.funcs.push(func);
+          if inlabel {
+            self.funcs.push(label);
+          }
+          inlabel = true;
+          label = Function::new(&Token::IDENT(s.to_string()))?;
         }
         Token::ENDFUNC => {
           self.state = 0;
-          let mut this_func = self.funcs.pop().unwrap();
-          for ins in &mut this_func.ins {
-            if ins.has_label {
-              let args = ins.args.as_mut().unwrap();
-              for i in 0..args.len() {
-                match &args[i] {
-                  Args::LABEL(s) => {
-                    match self.find_label(&s) {
-                      Ok(s) => {
-                        args[i] = match self.labels[s].1 {
-                          Token::INT(s) => Args::INT(s),
-                          _ => unreachable!()
-                        };
-                      }
-                      Err(..) => {
-                        if ins.name != Instruction::CALL {
-                          return Err("Label not found");
-                        }
-                        args[i] = Args::STRING(s.to_string());
-                      }
-                    }
-                  }
-                  _ => {}
-                } // match args[i]
-              } // args_loop
-            } // if ins.has_label
-          } // ins_loop
-          self.funcs.push(this_func);
-          self.labels.clear();
-        } // match TOKEN::ENDFUNC
+          if inlabel {
+            self.funcs.push(label);
+            inlabel = false;
+          }
+        }
         _ => return Err("Expected instruction name here")
       }
     }
     Ok(())
-  }
-  
-  fn find_label(&self, name: &str) -> Result<usize, ()> {
-    for i in 0..self.labels.len() {
-      if self.labels[i].0 == name {
-        return Ok(i);
-      }
-    }
-    Err(())
   }
 }

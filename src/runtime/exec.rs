@@ -123,10 +123,12 @@ impl Cpu {
   
   fn real_exec(&mut self, mut pc: usize) {
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
+    let mut depth: Vec<usize> = Vec::new();
     loop {
       let ins = utils::make_u32(&code[pc..(pc + 4)]);
       let opcode = ins >> 16;
       let (args, new) = decode(ins, code, pc);
+      println!("{:?}", depth.len());
       match opcode {
         1 => {
           let reg = args[0].get_reg() as usize;
@@ -158,7 +160,20 @@ impl Cpu {
             _ => unreachable!()
           }
         }
-        37 => return,
+        19 => {
+          let offset = args[0].get_int() as usize;
+          depth.push(new);
+          println!("{}", depth.len());
+          pc = offset;
+          continue;
+        }
+        37 => {
+          if depth.len() == 0 {
+            return;
+          }
+          pc = depth.pop().unwrap();
+          continue;
+        }
         _ => panic!("Invalid instruction {}", ins >> 16)
       }
       pc = new;

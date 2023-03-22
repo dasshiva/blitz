@@ -1,9 +1,8 @@
-.firmware
-include "cool.su"
-
 func main
   mov r0, 90
+hi:
   add r0, r1, r1
   ret
-  call low
 end
+
+include "firmware.su"

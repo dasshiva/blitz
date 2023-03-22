@@ -1,4 +1,3 @@
-use crate::parser::*;
 use crate::sema::SemUnit;
 use std::fs::File;
 use std::io::Error;
@@ -11,20 +10,6 @@ fn _write_bytes(file: &mut File, buf: &[u8]) -> Result<(), Error> {
     file.write_u8(*i)?;
   }
   Ok(())
-}
-
-fn _compute_flags_from_attrs(writer: &mut File, attrs: &Option<Vec<Attr>>) -> Result<(), Error> {
-  if attrs.is_none() {
-    writer.write_u16(0)?;
-    return Ok(());
-  }
-  let mut flag = 0u16;
-  for attr in attrs.as_ref().unwrap() {
-    match attr.0 {
-      Attrs::FIRMWARE => flag |= (1 << 0)
-    }
-  }
-  writer.write_u16(flag)
 }
 
 pub fn code_gen(unit: SemUnit) -> Result<(), Error> {

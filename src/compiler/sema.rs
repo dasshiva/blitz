@@ -2,7 +2,6 @@ use crate::r#proc::Unit;
 use crate::parser::Args::*;
 
 const MAGIC: u32 = 0xAFC;
-const _FIRMWARE_MAGIC: u32 = 0xFAE;
 const MAJOR: u16 = 0x1;
 const MINOR: u16 = 0x0;
 
@@ -101,10 +100,9 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
             }
             
             if !found {
-              panic!("Function {s} not found");
+              panic!("Function or label {s} not found");
             }
           }
-          _ => unreachable!()
         }
       }
       f.push(Ins {
@@ -113,11 +111,11 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
        size: ins_size
       });
       size += ins_size;
-      offset += ins_size;
     }
-    if func.name == "main" || func.name == "_start" {
+    if func.name == "_start" {
       header.start = offset;
     }
+    offset += size;
     offset_table.push((offset, func.name.clone()));
     funcs.push(Func {
       ins: f,
