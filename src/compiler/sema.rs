@@ -2,7 +2,7 @@ use crate::r#proc::Unit;
 use crate::parser::Args::*;
 
 const MAGIC: u32 = 0xAFC;
-const FIRMWARE_MAGIC: u32 = 0xFAE;
+const _FIRMWARE_MAGIC: u32 = 0xFAE;
 const MAJOR: u16 = 0x1;
 const MINOR: u16 = 0x0;
 
@@ -22,13 +22,13 @@ pub struct Ins {
 
 pub struct Func {
   pub ins: Vec<Ins>,
-  pub size: usize
+  pub size: usize,
 }
 
 pub struct SemUnit {
   pub name: String,
   pub header: Header,
-  pub funcs: Vec<Func>,
+  pub funcs: Vec<Func>
 }
 
 pub fn sem_analyse(unit: Unit) -> SemUnit {
@@ -113,15 +113,15 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
        size: ins_size
       });
       size += ins_size;
+      offset += ins_size;
     }
     if func.name == "main" || func.name == "_start" {
       header.start = offset;
     }
     offset_table.push((offset, func.name.clone()));
-    offset += size;
     funcs.push(Func {
       ins: f,
-      size
+      size,
     });
   }
   

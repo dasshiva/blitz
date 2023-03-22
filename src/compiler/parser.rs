@@ -95,13 +95,6 @@ impl Instruction {
       _ => false
     }
   }
-  
-  pub fn is_no_arg(&self) -> bool {
-    match self {
-      Instruction::NOP => true,
-      _ => false
-    }
-  }
 }
 
 #[derive(PartialEq, Debug)]
@@ -147,7 +140,7 @@ impl Args {
         };
         let mut reg = 0u8;
         match &split[0] {
-          Token::IDENT(i) => {
+          Token::IDENT(..) => {
             match Args::new(&split[0], defines)? {
               Args::REGISTER(r) => reg = r,
               _ => return Err("First argument to offset must be register")
