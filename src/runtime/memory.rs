@@ -2,7 +2,7 @@ extern crate mmap_rs;
 use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
 static SIZE: usize = 2 * 1024 * 1024;
 
-struct ResArea(pub String, pub usize, pub usize);
+pub struct ResArea(pub String, pub usize, pub usize);
 pub struct Memory {
   mem: MmapMut,
   size: usize,
@@ -61,6 +61,15 @@ impl Memory {
     }
     
     panic!("Memory region {area} not found")
+  }
+  
+  pub fn get_area(&self, name: &str) -> &ResArea {
+    for area in &self.areas {
+      if area.0 == name {
+        return area;
+      }
+    }
+    panic!("Area {name} not found")
   }
   
   pub fn init(code: &[u8]) -> Self {

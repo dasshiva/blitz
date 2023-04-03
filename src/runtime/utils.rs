@@ -11,6 +11,19 @@ pub fn make_u64(buf: &[u8]) -> u64 {
   num
 }
 
+pub fn u64_to_u8(buf: u64) -> [u8; 8] {
+  let mut num = [0u8; 8];
+  num[0] = (buf << 0) as u8;
+  num[1] = (buf << 8) as u8;
+  num[2] = (buf << 16) as u8;
+  num[3] = (buf << 24) as u8;
+  num[4] = (buf << 32) as u8;
+  num[5] = (buf << 40) as u8;
+  num[6] = (buf << 48) as u8;
+  num[7] = (buf << 56) as u8;
+  num
+}
+
 pub fn make_u32(buf: &[u8]) -> u32 {
   let mut num: u32 = 0;
   num |= (buf[3] as u32) << 24;

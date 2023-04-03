@@ -39,7 +39,9 @@ pub enum Instruction {
   PUSH = 34,
   POP = 35,
   LEA = 36,
-  RET = 37
+  RET = 37,
+  CMP = 38,
+  FCMP = 39
 }
 
 impl Instruction {
@@ -58,12 +60,12 @@ impl Instruction {
       "shl" | "SHL" => Ok((Instruction::SHL, 4)),
       "shr" | "SHR" => Ok((Instruction::SHR, 4)),
       "jmp" | "JMP" => Ok((Instruction::JMP, 2)),
-      "ifeq" | "IFEQ" => Ok((Instruction::IFEQ, 3)),
-      "ifne" | "IFNE" => Ok((Instruction::IFNE, 3)),
-      "ifge" | "IFGE" => Ok((Instruction::IFGE, 3)),
-      "ifgt" | "IFGT" => Ok((Instruction::IFGT, 3)),
-      "ifle" | "IFLE" => Ok((Instruction::IFLE, 3)),
-      "iflt" | "IFLT" => Ok((Instruction::IFLT, 3)),
+      "je" | "JE" => Ok((Instruction::IFEQ, 2)),
+      "jne" | "JNE" => Ok((Instruction::IFNE, 2)),
+      "jge" | "JGE" => Ok((Instruction::IFGE, 2)),
+      "jgt" | "JGT" => Ok((Instruction::IFGT, 2)),
+      "jle" | "JLE" => Ok((Instruction::IFLE, 2)),
+      "jlt" | "JLT" => Ok((Instruction::IFLT, 2)),
       "call" | "CALL" => Ok((Instruction::CALL, 2)),
       "fmov" | "FMOV" => Ok((Instruction::FMOV, 3)),
       "fadd" | "FADD" => Ok((Instruction::FADD, 4)),
@@ -83,6 +85,8 @@ impl Instruction {
       "pop" | "POP" => Ok((Instruction::POP, 2)),
       "lea" | "LEA" => Ok((Instruction::LEA, 3)),
       "ret" | "RET" => Ok((Instruction::RET, 1)),
+      "cmp" | "CMP" => Ok((Instruction::CMP, 3)),
+      "fcmp" | "FCMP" => Ok((Instruction::FCMP, 3)),
       _ => Err("Invalid instruction")
     }
   }
@@ -234,6 +238,7 @@ impl Attr {
   }
 }
 
+#[derive(Debug)]
 pub struct Function {
  pub name: String,
  pub ins: Vec<Instr>
@@ -276,7 +281,7 @@ impl Parser {
   }
   
   pub fn parse(&mut self, target: Vec<Token>) -> Result<(), &str> {
-    let mut inlabel = true;
+    let mut inlabel = false;
     let mut label = Function::new(&Token::IDENT("".to_string()))?;
     if target.len() == 0 {
       return Ok(());
@@ -350,13 +355,7 @@ impl Parser {
     else if self.state == 2 {
       match &target[0] {
         Token::IDENT(s) => {
-          let mut this_func: Function;
-          if !inlabel {
-            this_func = self.funcs.pop().unwrap();
-          }
-          else {
-            this_func = label;
-          }
+          let mut this_func = self.funcs.pop().unwrap();
           let mut ins = Instr::new(s.to_owned())?;
           if ins.len != 1 {
             ins.add_args(&target[1..], &self.define)?;
@@ -366,15 +365,17 @@ impl Parser {
         }
         Token::LABEL(s) => {
           if inlabel {
+            label = Function::new(&Token::IDENT(s.to_string()))?;
             self.funcs.push(label);
           }
-          inlabel = true;
-          label = Function::new(&Token::IDENT(s.to_string()))?;
+          else {
+            inlabel = true;
+            self.funcs.push(Function::new(&Token::IDENT(s.to_string()))?);
+          } 
         }
         Token::ENDFUNC => {
           self.state = 0;
           if inlabel {
-            self.funcs.push(label);
             inlabel = false;
           }
         }

@@ -1,8 +1,7 @@
 func main
-  mov r0, 90
+  mov r0, 91
 hi:
-  add r0, r1, r1
-  ret
+  mov r0, 90
+  cmp r0, 91
+  jne hi
 end
-
-include "firmware.su"

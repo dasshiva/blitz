@@ -7,6 +7,7 @@ const MINOR: u16 = 0x0;
 
 pub struct Cpu {
   regs: Vec<usize>,
+  fregs: Vec<f64>,
   memory: Memory,
 }
 
@@ -84,18 +85,20 @@ fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   args_vec.push(read_args(arg1, code, &mut pc));
   args_vec.push(read_args(arg2, code, &mut pc));
   args_vec.push(read_args(arg3, code, &mut pc));
-  println!("{args_vec:?}");
   (args_vec, pc)
 }
 
 impl Cpu {
   fn new(memory: Memory) -> Self {
-    let mut regs: Vec<usize> = Vec::with_capacity(26);
-    for _ in 0..26 {
+    let mut regs: Vec<usize> = Vec::with_capacity(27);
+    let mut fregs: Vec<f64> = Vec::with_capacity(27);
+    for _ in 0..27 {
       regs.push(0);
+      fregs.push(0.0);
     }
     Self {
       regs,
+      fregs,
       memory
     }
   }
@@ -117,10 +120,12 @@ impl Cpu {
   pub fn exec(&mut self) {
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     let offset = utils::make_u64(&code[8..16]);
-    println!("{offset:X}");
+    let sp = self.memory.get_area("Stack");
+    self.regs[25] = sp.2;
     self.real_exec(offset as usize);
   }
   
+  #[allow(mutable_transmutes)]
   fn real_exec(&mut self, mut pc: usize) {
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     let mut depth: Vec<usize> = Vec::new();
@@ -128,8 +133,8 @@ impl Cpu {
       let ins = utils::make_u32(&code[pc..(pc + 4)]);
       let opcode = ins >> 16;
       let (args, new) = decode(ins, code, pc);
-      println!("{:?}", depth.len());
       match opcode {
+        0 => {},
         1 => {
           let reg = args[0].get_reg() as usize;
           self.regs[reg] = args[1].get_int() as usize;
@@ -160,12 +165,84 @@ impl Cpu {
             _ => unreachable!()
           }
         }
-        19 => {
+        12 | 19 => {
           let offset = args[0].get_int() as usize;
           depth.push(new);
-          println!("{}", depth.len());
           pc = offset;
           continue;
+        }
+        13..=18 => {
+          let offset = args[0].get_int() as usize;
+          let mut res = false;
+          match opcode - 13 {
+            0 => res = (self.regs[26] & (1 << 0)) != 0,
+            1 => res = (self.regs[26] & (1 << 1)) != 0,
+            2 => res = (self.regs[26] & (1 << 2)) != 0,
+            3 => res = (self.regs[26] & (1 << 3)) != 0,
+            4 => res = (self.regs[26] & (1 << 4)) != 0,
+            _ => unreachable!()
+          }
+          if res {
+            pc = offset;
+            continue;
+          }
+        }
+        20 => {
+          let reg = args[0].get_reg() as usize;
+          self.fregs[reg] = args[1].get_decimal();
+        }
+        21..=25 => {
+          let reg = args[0].get_reg() as usize;
+          let arg1 = match &args[1] {
+            Args::DECIMAL(s) => *s,
+            Args::REG(r) => self.fregs[*r as usize],
+            _ => unreachable!()
+          };
+          let arg2 = match &args[2] {
+            Args::DECIMAL(s) => *s,
+            Args::REG(r) => self.fregs[*r as usize],
+            _ => unreachable!()
+          };
+          match opcode - 21 {
+            0 => self.fregs[reg] = arg1 + arg2,
+            1 => self.fregs[reg] = arg1 - arg2,
+            2 => self.fregs[reg] = arg1 * arg2,
+            3 => self.fregs[reg] = arg1 / arg2,
+            4 => self.fregs[reg] = arg1 % arg2,
+            _ => unreachable!()
+          }
+        }
+        32 => {
+          let arg1 = match &args[0] {
+            Args::DECIMAL(s) => *s,
+            Args::REG(r) => self.fregs[*r as usize],
+            _ => unreachable!()
+          };
+          let num = utils::u64_to_u8(arg1 as u64);
+          self.regs[25] -= 8;
+          let mem = unsafe {
+            std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
+          };
+          mem.write("Stack", self.regs[25], &num);
+        }
+        34 => {
+          let arg1 = match &args[0] {
+            Args::INT(s) => *s as usize,
+            Args::REG(r) => self.regs[*r as usize],
+            _ => unreachable!()
+          };
+          let num = utils::u64_to_u8(arg1 as u64);
+          self.regs[25] -= 8;
+          let mem = unsafe {
+            std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
+          };
+          mem.write("Stack", self.regs[25], &num);
+        }
+        35 => {
+          let reg = args[0].get_reg() as usize;
+          let word = self.memory.read("Stack", self.regs[25], 8);
+          self.regs[25] += 8;
+          self.regs[reg] = utils::make_u64(&word) as usize;
         }
         37 => {
           if depth.len() == 0 {
@@ -174,9 +251,56 @@ impl Cpu {
           pc = depth.pop().unwrap();
           continue;
         }
+        38 => {
+          let arg1 = match &args[0] {
+            Args::INT(s) => *s as usize,
+            Args::REG(r) => self.regs[*r as usize],
+            _ => unreachable!()
+          };
+          let arg2 = match &args[1] {
+            Args::INT(s) => *s as usize,
+            Args::REG(r) => self.regs[*r as usize],
+            _ => unreachable!()
+          };
+          if arg1 == arg2 {
+            self.regs[26] |= 1 << 0;
+          } else if arg1 > arg2 {
+            self.regs[26] |= 1 << 1;
+          } else if  arg1 >= arg2 {
+            self.regs[26] |= 1 << 2;
+          } else if arg1 < arg2 {
+            self.regs[26] |= 1 << 3;
+          } else if arg1 <= arg2 {
+            self.regs[26] |= 1 << 4;
+          }
+        }
+        39 => {
+          let arg1 = match &args[0] {
+            Args::DECIMAL(s) => *s,
+            Args::REG(r) => self.fregs[*r as usize],
+            _ => unreachable!()
+          };
+          let arg2 = match &args[1] {
+            Args::DECIMAL(s) => *s,
+            Args::REG(r) => self.fregs[*r as usize],
+            _ => unreachable!()
+          };
+          if arg1 == arg2 {
+            self.regs[26] |= 1 << 0;
+          } else if arg1 > arg2 {
+            self.regs[26] |= 1 << 1;
+          } else if  arg1 >= arg2 {
+            self.regs[26] |= 1 << 2;
+          } else if arg1 < arg2 {
+            self.regs[26] |= 1 << 3;
+          } else if arg1 <= arg2 {
+            self.regs[26] |= 1 << 4;
+          }
+        }
         _ => panic!("Invalid instruction {}", ins >> 16)
       }
       pc = new;
+      println!("{:?}", self.regs);
     }
   }
 }
