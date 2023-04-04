@@ -3,5 +3,5 @@ func main
 hi:
   mov r0, 90
   cmp r0, 91
-  jne hi
+  je hi
 end

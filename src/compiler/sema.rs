@@ -41,6 +41,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
   let mut offset_table: Vec<(usize, String)> = Vec::new();
   let mut funcs: Vec<Func> = Vec::new();
   for func in &unit.funcs {
+    offset_table.push((offset, func.name.clone()));
     let mut f: Vec<Ins> = Vec::new();
     let mut size = 0;
     for ins in &func.ins {
@@ -102,7 +103,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
             if !found {
               panic!("Function or label {s} not found");
             }
-          }
+          } 
         }
       }
       f.push(Ins {
@@ -116,7 +117,6 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
       header.start = offset;
     }
     offset += size;
-    offset_table.push((offset, func.name.clone()));
     funcs.push(Func {
       ins: f,
       size,
