@@ -1,3 +1,5 @@
+use std::hint::unreachable_unchecked;
+
 use crate::memory::Memory;
 use crate::utils;
 
@@ -176,11 +178,12 @@ impl Cpu {
           let mut res = false;
           match opcode - 13 {
             0 => res = (self.regs[26] & (1 << 0)) != 0,
-            1 => res = (self.regs[26] & (1 << 1)) != 0,
-            2 => res = (self.regs[26] & (1 << 2)) != 0,
-            3 => res = (self.regs[26] & (1 << 3)) != 0,
-            4 => res = (self.regs[26] & (1 << 4)) != 0,
-            _ => unreachable!()
+            1 => res = (self.regs[26] & (1 << 0)) == 0,
+            2 => res = (self.regs[26] & (1 << 1)) != 0 || (self.regs[26] & (1 << 0)) != 0,
+            3 => res = (self.regs[26] & (1 << 1)) != 0,
+            4 => res = (self.regs[26] & (1 << 2)) != 0 || (self.regs[26] & (1 << 0)) != 0,
+            5 => res = self.regs[26] & (1 << 2) != 0,
+            _ => unsafe { unreachable_unchecked() }
           }
           if res {
             pc = offset;
@@ -266,12 +269,8 @@ impl Cpu {
             self.regs[26] |= 1 << 0;
           } else if arg1 > arg2 {
             self.regs[26] |= 1 << 1;
-          } else if  arg1 >= arg2 {
-            self.regs[26] |= 1 << 2;
           } else if arg1 < arg2 {
-            self.regs[26] |= 1 << 3;
-          } else if arg1 <= arg2 {
-            self.regs[26] |= 1 << 4;
+            self.regs[26] |= 1 << 2;
           }
         }
         39 => {

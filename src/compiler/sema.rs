@@ -121,10 +121,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
       ins: f,
       size,
     });
-  }
-  
-  if header.start == 15 {
-    panic!("No main function found");
+    println!("{offset_table:?}");
   }
   
   SemUnit {
