@@ -28,6 +28,12 @@ pub enum Instruction {
   FMUL = 23,
   FDIV = 24,
   FMOD = 25,
+  INC = 26,
+  DEC = 27,
+  FINC = 28,
+  FDEC = 29,
+  SET = 30,
+  CLEAR = 31,
   FPUSH = 32,
   FPOP = 33,
   PUSH = 34,
@@ -67,6 +73,12 @@ impl Instruction {
       "fmul" | "FMUL" => Ok((Instruction::FMUL, 4)),
       "fdiv" | "FDIV" => Ok((Instruction::FDIV, 4)),
       "fmod" | "FMOD" => Ok((Instruction::FMOD, 4)),
+      "inc" | "INC" => Ok((Instruction::INC, 2)),
+      "dec" | "DEC" => Ok((Instruction::DEC, 2)),
+      "finc" | "FINC" => Ok((Instruction::FINC, 2)),
+      "fdec" | "FDEC" => Ok((Instruction::FDEC, 2)),
+      "set" | "SET" => Ok((Instruction::SET, 3)),
+      "clear" | "clear" => Ok((Instruction::CLEAR, 3)),
       "fpush" | "FPUSH" => Ok((Instruction::FPUSH, 2)),
       "fpop" | "FPOP" => Ok((Instruction::FPOP, 2)),
       "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
@@ -83,7 +95,7 @@ impl Instruction {
     match self {
       Instruction::JMP | Instruction::JE | Instruction::JNE |
       Instruction::JLT | Instruction::JLE | Instruction::JGT |
-      Instruction::JGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV => true,
+      Instruction::JGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV | Instruction::INC | Instruction::DEC => true,
       _ => false
     }
   }
@@ -341,7 +353,6 @@ impl Parser {
       }
     }
     else if self.state == 2 {
-      println!("{:?}", target[0]);
       match &target[0] {
         Token::IDENT(s) => {
           let mut this_func = self.funcs.pop().unwrap();

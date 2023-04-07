@@ -234,6 +234,58 @@ impl Cpu {
             _ => unreachable!()
           }
         }
+        26 => {
+          match &args[0] {
+            Args::REG(r) => self.regs[*r as usize] += 1,
+            Args::OFFSET(reg, off) => {
+              let address = self.regs[*reg as usize] + *off as usize;
+              let arg = utils::make_u64(self.memory.raw_read(address, address + 8)) + 1;
+              let content = utils::u64_to_u8(arg as u64);
+              let mem = unsafe {
+               std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
+             };
+              mem.raw_write(address, address + 8, &content);
+            }
+            _ => unreachable!()
+          }
+        }
+        27 => {
+          match &args[0] {
+            Args::REG(r) => self.regs[*r as usize] -= 1,
+            Args::OFFSET(reg, off) => {
+              let address = self.regs[*reg as usize] + *off as usize;
+              let arg = utils::make_u64(self.memory.raw_read(address, address + 8)) - 1;
+              let content = utils::u64_to_u8(arg as u64);
+              let mem = unsafe {
+               std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
+             };
+              mem.raw_write(address, address + 8, &content);
+            }
+            _ => unreachable!()
+          }
+        }
+        28 => {
+          match &args[0] {
+            Args::REG(r) => self.fregs[*r as usize] += 1.0,
+            _ => unreachable!()
+          }
+        }
+        29 => {
+          match &args[0] {
+            Args::REG(r) => self.fregs[*r as usize] -= 1.0,
+            _ => unreachable!()
+          }
+        }
+        30 => {
+          let reg = args[0].get_reg() as usize;
+          let bit = args[1].get_int() as usize;
+          self.regs[reg] |= 1 << bit;
+        }
+        31 => {
+          let reg = args[0].get_reg() as usize;
+          let bit = args[1].get_int() as usize;
+          self.regs[reg] &= !(1 << bit);
+        }
         32 => {
           let arg1 = match &args[0] {
             Args::DECIMAL(s) => *s,
