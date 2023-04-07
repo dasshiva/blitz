@@ -1,115 +1,101 @@
 extern crate mmap_rs;
-use mmap_rs::{MmapOptions, MmapFlags, MmapMut, Error};
+use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
+static SIZE: usize = 2 * 1024 * 1024;
 
-pub fn i64_to_bytes(value: i64) -> [u8; 8] {
-  let mut arr = [0; 8];
-  let val = unsafe { std::mem::transmute::<i64, u64>(value) };
-  arr[0] = (val >> 56) as u8;
-  arr[1] = (val >> 48) as u8;
-  arr[2] = (val >> 40) as u8;
-  arr[3] = (val >> 32) as u8;
-  arr[4] = (val >> 24) as u8;
-  arr[5] = (val >> 16) as u8;
-  arr[6] = (val >> 8) as u8;
-  arr[7] = (val >> 0) as u8;
-  arr
-}
-
-#[derive(Clone)]
 pub struct ResArea(pub String, pub usize, pub usize);
-
 pub struct Memory {
+  mem: MmapMut,
   size: usize,
-  resarea: Vec<ResArea>,
-  mem: MmapMut
+  areas: Vec<ResArea>
 }
 
 impl Memory {
-  pub fn new(size: usize) -> Result<Self, Error> {
-    Ok(Self {
-      size,
-      mem: MmapOptions::new(size)?
-           .with_flags(MmapFlags::COPY_ON_WRITE)
-           .map_mut()?,
-      resarea: Vec::new()
-    })
-  }
-  
-  pub fn new_reserved_area(&mut self, area: ResArea) {
-    if area.2 > 0x1500 {
-      panic!("Reserved area cannot be created over 0x1500")
-    }
-    self.resarea.push(area);
-  }
-  
-  pub fn write(&mut self, mut offset: usize, data: &[u8]) {
-    if data.len() + offset > self.size {
-      panic!("Cannot write data of len {} as it will cause OOM", 
-       data.len())
-    }
-    for i in 0..data.len() {
-      self.mem[offset] = data[i];
-      offset += 1;
-    }
-  }
-  
-  pub fn read(&self, offset: usize, len: usize) -> &[u8] {
-    if offset + len > self.size {
-      panic!("Cannot read {} bytes as it will read over memory limits", len);
-    }
-    &self.mem[offset..(offset + len + 1)]
-  }
-}
-
-pub struct Stack {
-  pub top: usize,
-  beg: usize,
-  end: usize,
-}
-
-impl Stack {
-  pub fn new(area: &ResArea) -> Self {
-    if area.0 != "stack" {
-      unreachable!()
-    }
+  pub fn new(size: usize) -> Self {
+   let mem = match MmapOptions::new(size).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
+      Ok(s) => s,
+      Err(e) => panic!("Error allocating memory {e}")
+   };
     Self {
-      top: area.1,
-      beg: area.1,
-      end: area.2
+      mem,
+      size,
+      areas: Vec::new()
     }
   }
   
-  pub fn push(&mut self, value: i64, mem: &mut Memory) {
-    if self.top + 8 > self.end {
-      panic!("Stack overflow");
-    }
-    let arr = i64_to_bytes(value);
-    mem.write(self.top, &arr);
-    self.top += 8;
+  fn new_area(&mut self, name: &str, start: usize, end: usize) {
+    let area = ResArea(name.to_string(), start, end);
+    self.areas.push(area);
   }
   
-  pub fn pop(&mut self, mem: &Memory) -> i64 {
-    if self.top - 8 < self.beg {
-      panic!("Stack underflow");
+  pub fn write(&mut self, area: &str, mut offset: usize, buf: &[u8]) {
+    for i in &self.areas {
+      if i.0 == area {
+         if i.1 > offset || i.2 < offset {
+           panic!("Offset to write is beyond region {area}'s limits");
+         }
+         if i.2 - i.1 + 1 < buf.len() {
+           panic!("Writing beyond the limits of region {area}");
+         }
+         for i in buf {
+           self.mem[offset] = *i;
+           offset += 1;
+         }
+         return;
+      }
     }
-    self.top -= 8;
-    let array = mem.read(self.top, 8);
-    let mut copy = [0u8; 8];
-    for i in 0..8 {
-      copy[i] = array[i];
-    }
-    i64::from_be_bytes(copy)
+    
+    panic!("Memory region {area} not found");
   }
   
-  pub fn pushf(&mut self, val: f64, mem: &mut Memory) {
-    let value = unsafe { std::mem::transmute::<f64, i64>(val) };
-    self.push(value, mem);
+  pub fn read(&self, area: &str, offset: usize, len: usize) -> &[u8] {
+    for i in &self.areas {
+      if i.0 == area {
+         if i.1 > offset || i.2 < offset {
+           panic!("Offset to read is beyond region {area}'s limits");
+         }
+         if i.2 - i.1 + 1 < len {
+           panic!("Reading beyond the limits of region {area}");
+         }
+         return &self.mem[offset..(offset + len)];
+      }
+    }
+    
+    panic!("Memory region {area} not found")
   }
   
-  pub fn popf(&mut self, mem: &Memory) -> f64 {
-    let value = self.pop(mem);
-    unsafe {
-      std::mem::transmute::<i64, f64>(value)
+  pub fn get_area(&self, name: &str) -> &ResArea {
+    for area in &self.areas {
+      if area.0 == name {
+        return area;
+      }
     }
+    panic!("Area {name} not found")
+  }
+  
+  pub fn raw_write(&mut self, mut beg: usize, end: usize, buf: &[u8]) {
+    if end >= self.size {
+      panic!("Writing beyond memory limits is not allowed");
+    }
+    for unit in buf {
+      self.mem[beg] = *unit;
+      beg += 1;
+    }
+  }
+  
+  pub fn raw_read(&self, beg: usize, end: usize) -> &[u8] {
+    if end >= self.size {
+      panic!("Writing beyond memory limits is not allowed");
+    }
+    &self.mem[beg..end]
+  }
+  
+  pub fn init(code: &[u8]) -> Self {
+    let mut mem = Memory::new(SIZE);
+    mem.new_area("Code", 0x00000, 0x7DFFF);
+    mem.write("Code", 0x00000, code);
+    mem.new_area("Data", 0x7E000, 0xFDFFF);
+    mem.new_area("Stack", 0xFE000, 0xFFFFF);
+    mem.new_area("Heap", 0xFF000, SIZE - 1);
+    mem
   }
 }

@@ -193,8 +193,16 @@ impl Unit {
       };
       match parser.parse(split) {
         Ok(..) => {},
-         Err(e) => src.error(e)
+        Err(e) => src.error(e)
       }
+    }
+    let split = match line_split("include \"firmware.su\" ".as_bytes()) {
+        Ok(s) => s,
+        Err(e) => src.error(e)
+    };
+    match parser.parse(split) {
+      Ok(..) => {},
+      Err(e) => src.error(e)
     }
     Unit {
       name: src.file,

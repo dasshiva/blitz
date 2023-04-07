@@ -1,0 +1,4 @@
+func _start
+  call main
+  ret
+end

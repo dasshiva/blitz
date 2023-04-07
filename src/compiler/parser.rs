@@ -15,12 +15,12 @@ pub enum Instruction {
   SHL = 10,
   SHR = 11,
   JMP = 12,
-  IFEQ = 13,
-  IFNE = 14,
-  IFGE = 15,
-  IFGT = 16,
-  IFLE = 17,
-  IFLT = 18,
+  JE= 13,
+  JNE = 14,
+  JGE = 15,
+  JGT = 16,
+  JLE = 17,
+  JLT = 18,
   CALL = 19,
   FMOV = 20,
   FADD = 21,
@@ -28,17 +28,14 @@ pub enum Instruction {
   FMUL = 23,
   FDIV = 24,
   FMOD = 25,
-  FIFEQ = 26,
-  FIFNE = 27,
-  FIFGE = 28,
-  FIFGT = 29,
-  FIFLE = 30,
-  FIFLT = 31,
   FPUSH = 32,
   FPOP = 33,
   PUSH = 34,
   POP = 35,
-  LEA = 36
+  LEA = 36,
+  RET = 37,
+  CMP = 38,
+  FCMP = 39
 }
 
 impl Instruction {
@@ -57,12 +54,12 @@ impl Instruction {
       "shl" | "SHL" => Ok((Instruction::SHL, 4)),
       "shr" | "SHR" => Ok((Instruction::SHR, 4)),
       "jmp" | "JMP" => Ok((Instruction::JMP, 2)),
-      "ifeq" | "IFEQ" => Ok((Instruction::IFEQ, 3)),
-      "ifne" | "IFNE" => Ok((Instruction::IFNE, 3)),
-      "ifge" | "IFGE" => Ok((Instruction::IFGE, 3)),
-      "ifgt" | "IFGT" => Ok((Instruction::IFGT, 3)),
-      "ifle" | "IFLE" => Ok((Instruction::IFLE, 3)),
-      "iflt" | "IFLT" => Ok((Instruction::IFLT, 3)),
+      "je" | "JE" => Ok((Instruction::JE, 2)),
+      "jne" | "JNE" => Ok((Instruction::JNE, 2)),
+      "jge" | "JGE" => Ok((Instruction::JGE, 2)),
+      "jgt" | "JGT" => Ok((Instruction::JGT, 2)),
+      "jle" | "JLE" => Ok((Instruction::JLE, 2)),
+      "jlt" | "JLT" => Ok((Instruction::JLT, 2)),
       "call" | "CALL" => Ok((Instruction::CALL, 2)),
       "fmov" | "FMOV" => Ok((Instruction::FMOV, 3)),
       "fadd" | "FADD" => Ok((Instruction::FADD, 4)),
@@ -70,33 +67,23 @@ impl Instruction {
       "fmul" | "FMUL" => Ok((Instruction::FMUL, 4)),
       "fdiv" | "FDIV" => Ok((Instruction::FDIV, 4)),
       "fmod" | "FMOD" => Ok((Instruction::FMOD, 4)),
-      "fifeq" | "FIFEQ" => Ok((Instruction::FIFEQ, 3)),
-      "fifne" | "FIFNE" => Ok((Instruction::FIFNE, 3)),
-      "fifge" | "FIFGE" => Ok((Instruction::FIFGE, 3)),
-      "fifgt" | "FIFGT" => Ok((Instruction::FIFGT, 3)),
-      "fifle" | "FIFLE" => Ok((Instruction::FIFLE, 3)),
-      "fiflt" | "FIFLT" => Ok((Instruction::FIFLT, 3)),
       "fpush" | "FPUSH" => Ok((Instruction::FPUSH, 2)),
       "fpop" | "FPOP" => Ok((Instruction::FPOP, 2)),
       "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
       "pop" | "POP" => Ok((Instruction::POP, 2)),
       "lea" | "LEA" => Ok((Instruction::LEA, 3)),
+      "ret" | "RET" => Ok((Instruction::RET, 1)),
+      "cmp" | "CMP" => Ok((Instruction::CMP, 3)),
+      "fcmp" | "FCMP" => Ok((Instruction::FCMP, 3)),
       _ => Err("Invalid instruction")
     }
   }
   
   pub fn is_farg_nreg(&self) -> bool {
     match self {
-      Instruction::JMP | Instruction::IFEQ | Instruction::IFNE |
-      Instruction::IFLT | Instruction::IFLE | Instruction::IFGT |
-      Instruction::IFGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV => true,
-      _ => false
-    }
-  }
-  
-  pub fn is_no_arg(&self) -> bool {
-    match self {
-      Instruction::NOP => true,
+      Instruction::JMP | Instruction::JE | Instruction::JNE |
+      Instruction::JLT | Instruction::JLE | Instruction::JGT |
+      Instruction::JGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV => true,
       _ => false
     }
   }
@@ -107,7 +94,6 @@ pub enum Args {
   INT(i64),
   DECIMAL(f64),
   STRING(String),
-  LABEL(String),
   REGISTER(u8),
   OFFSET(u8, i64),
 }
@@ -121,20 +107,20 @@ impl Args {
             Ok(s) => s,
             Err(..) => return Err("Invalid register")
           };
-          if id <= 30 {
+          if id < 25 {
             return Ok(Args::REGISTER(id));
           }
           return Err("Invalid register number");
         }
         else if s == "sp" {
-          return Ok(Args::REGISTER(31));
+          return Ok(Args::REGISTER(25));
         }
         for def in defines {
           if s == &def.0 {
             return Args::new(&def.1, defines);
           }
         }
-        return Ok(Args::LABEL(s.to_string()));
+        return Ok(Args::STRING(s.to_string()));
       }
       Token::OFFSET(s) => {
         let mut arg = s.to_string();
@@ -145,7 +131,7 @@ impl Args {
         };
         let mut reg = 0u8;
         match &split[0] {
-          Token::IDENT(i) => {
+          Token::IDENT(..) => {
             match Args::new(&split[0], defines)? {
               Args::REGISTER(r) => reg = r,
               _ => return Err("First argument to offset must be register")
@@ -188,7 +174,6 @@ impl Args {
 pub struct Instr {
   pub name: Instruction,
   pub len: usize,
-  pub has_label: bool,
   pub args: Option<Vec<Args>>
 }
 
@@ -197,7 +182,6 @@ impl Instr {
     let (ins, len) = Instruction::new(name)?;
     Ok(Self {
       name: ins,
-      has_label: false,
       len,
       args: {
         if len != 1 {
@@ -216,13 +200,6 @@ impl Instr {
     }
     for arg in args {
       let ar = Args::new(arg, defines)?;
-      match ar {
-        Args::LABEL(..) => {
-        println!("{arg:?}");
-        self.has_label = true;
-        }
-        _ => {}
-      }
       self.args.as_mut().unwrap().push(ar);
     }
     if !self.name.is_farg_nreg() {
@@ -249,6 +226,7 @@ impl Attr {
   }
 }
 
+#[derive(Debug)]
 pub struct Function {
  pub name: String,
  pub ins: Vec<Instr>
@@ -275,7 +253,6 @@ pub struct Define(String, Token);
 
 pub struct Parser {
   define: Vec<Define>,
-  labels: Vec<Define>,
   pub attrs: Option<Vec<Attr>>,
   pub funcs: Vec<Function>,
   state: u8
@@ -286,13 +263,14 @@ impl Parser {
     Self {
       define: Vec::new(),
       funcs: Vec::new(),
-      labels: Vec::new(),
       attrs: None,
       state: 0u8
     }
   }
   
   pub fn parse(&mut self, target: Vec<Token>) -> Result<(), &str> {
+    let mut inlabel = false;
+    let mut label = Function::new(&Token::IDENT("".to_string()))?;
     if target.len() == 0 {
       return Ok(());
     }
@@ -373,56 +351,26 @@ impl Parser {
           }
           this_func.add_ins(ins);
           self.funcs.push(this_func);
-        },
+        }
         Token::LABEL(s) => {
-          let func = self.funcs.pop().unwrap();
-          self.labels.push(Define(s.to_string(), Token::INT(func.ins.len() as i64)));
-          self.funcs.push(func);
+          if inlabel {
+            label = Function::new(&Token::IDENT(s.to_string()))?;
+            self.funcs.push(label);
+          }
+          else {
+            inlabel = true;
+            self.funcs.push(Function::new(&Token::IDENT(s.to_string()))?);
+          } 
         }
         Token::ENDFUNC => {
           self.state = 0;
-          let mut this_func = self.funcs.pop().unwrap();
-          for ins in &mut this_func.ins {
-            if ins.has_label {
-              let args = ins.args.as_mut().unwrap();
-              for i in 0..args.len() {
-                match &args[i] {
-                  Args::LABEL(s) => {
-                    match self.find_label(&s) {
-                      Ok(s) => {
-                        args[i] = match self.labels[s].1 {
-                          Token::INT(s) => Args::INT(s),
-                          _ => unreachable!()
-                        };
-                      }
-                      Err(..) => {
-                        if ins.name != Instruction::CALL {
-                          return Err("Label not found");
-                        }
-                        args[i] = Args::STRING(s.to_string());
-                      }
-                    }
-                  }
-                  _ => {}
-                } // match args[i]
-              } // args_loop
-            } // if ins.has_label
-          } // ins_loop
-          self.funcs.push(this_func);
-          self.labels.clear();
-        } // match TOKEN::ENDFUNC
+          if inlabel {
+            inlabel = false;
+          }
+        }
         _ => return Err("Expected instruction name here")
       }
     }
     Ok(())
-  }
-  
-  fn find_label(&self, name: &str) -> Result<usize, ()> {
-    for i in 0..self.labels.len() {
-      if self.labels[i].0 == name {
-        return Ok(i);
-      }
-    }
-    Err(())
   }
 }
