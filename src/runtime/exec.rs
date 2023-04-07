@@ -138,8 +138,27 @@ impl Cpu {
       match opcode {
         0 => {},
         1 => {
-          let reg = args[0].get_reg() as usize;
-          self.regs[reg] = args[1].get_int() as usize;
+          let arg = match &args[1] {
+            Args::REG(r) => self.regs[*r as usize],
+            Args::INT(s) => *s as usize,
+            Args::OFFSET(reg, off) => {
+              let address = self.regs[*reg as usize] + *off as usize;
+              utils::make_u64(self.memory.raw_read(address, address + 8)) as usize
+            }
+            _ => unreachable!()
+          };
+          match &args[0] {
+            Args::REG(r) => self.regs[*r as usize] = arg,
+            Args::OFFSET(reg, off) => {
+              let address = self.regs[*reg as usize] + *off as usize;
+              let content = utils::u64_to_u8(arg as u64);
+              let mem = unsafe {
+               std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
+             };
+              mem.raw_write(address, address + 8, &content);
+            }
+            _ => unreachable!()
+          }
         }
         2..=11 => {
           let reg = args[0].get_reg() as usize;
@@ -228,6 +247,12 @@ impl Cpu {
           };
           mem.write("Stack", self.regs[25], &num);
         }
+        33 => {
+          let reg = args[0].get_reg() as usize;
+          let word = self.memory.read("Stack", self.regs[25], 8);
+          self.regs[25] += 8;
+          self.fregs[reg] = unsafe { std::mem::transmute::<u64, f64>(utils::make_u64(&word)) };
+        }
         34 => {
           let arg1 = match &args[0] {
             Args::INT(s) => *s as usize,
@@ -246,6 +271,11 @@ impl Cpu {
           let word = self.memory.read("Stack", self.regs[25], 8);
           self.regs[25] += 8;
           self.regs[reg] = utils::make_u64(&word) as usize;
+        }
+        36 => {
+          let reg = args[0].get_reg() as usize;
+          let (target, offset) = args[1].get_off();
+          self.regs[reg] = self.regs[target as usize] + offset as usize;
         }
         37 => {
           if depth.len() == 0 {
@@ -288,18 +318,14 @@ impl Cpu {
             self.regs[26] |= 1 << 0;
           } else if arg1 > arg2 {
             self.regs[26] |= 1 << 1;
-          } else if  arg1 >= arg2 {
-            self.regs[26] |= 1 << 2;
           } else if arg1 < arg2 {
-            self.regs[26] |= 1 << 3;
-          } else if arg1 <= arg2 {
-            self.regs[26] |= 1 << 4;
+            self.regs[26] |= 1 << 2;
           }
         }
         _ => panic!("Invalid instruction {}", ins >> 16)
       }
       pc = new;
-      println!("{:?}", self.regs);
+      println!("{:?}, {pc}", self.regs);
     }
   }
 }

@@ -72,6 +72,23 @@ impl Memory {
     panic!("Area {name} not found")
   }
   
+  pub fn raw_write(&mut self, mut beg: usize, end: usize, buf: &[u8]) {
+    if end >= self.size {
+      panic!("Writing beyond memory limits is not allowed");
+    }
+    for unit in buf {
+      self.mem[beg] = *unit;
+      beg += 1;
+    }
+  }
+  
+  pub fn raw_read(&self, beg: usize, end: usize) -> &[u8] {
+    if end >= self.size {
+      panic!("Writing beyond memory limits is not allowed");
+    }
+    &self.mem[beg..end]
+  }
+  
   pub fn init(code: &[u8]) -> Self {
     let mut mem = Memory::new(SIZE);
     mem.new_area("Code", 0x00000, 0x7DFFF);

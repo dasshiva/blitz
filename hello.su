@@ -1,7 +1,7 @@
 func main
-  mov r0, 91
-hi:
-  mov r0, 90
-  cmp r0, 91
-  je hi
+  lea r0, [sp + 4]
+  mov r1, 90
+  mov [r0], r1
+  mov r2, [r0]
+  ret
 end

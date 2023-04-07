@@ -15,12 +15,12 @@ pub enum Instruction {
   SHL = 10,
   SHR = 11,
   JMP = 12,
-  IFEQ = 13,
-  IFNE = 14,
-  IFGE = 15,
-  IFGT = 16,
-  IFLE = 17,
-  IFLT = 18,
+  JE= 13,
+  JNE = 14,
+  JGE = 15,
+  JGT = 16,
+  JLE = 17,
+  JLT = 18,
   CALL = 19,
   FMOV = 20,
   FADD = 21,
@@ -28,12 +28,6 @@ pub enum Instruction {
   FMUL = 23,
   FDIV = 24,
   FMOD = 25,
-  FIFEQ = 26,
-  FIFNE = 27,
-  FIFGE = 28,
-  FIFGT = 29,
-  FIFLE = 30,
-  FIFLT = 31,
   FPUSH = 32,
   FPOP = 33,
   PUSH = 34,
@@ -60,12 +54,12 @@ impl Instruction {
       "shl" | "SHL" => Ok((Instruction::SHL, 4)),
       "shr" | "SHR" => Ok((Instruction::SHR, 4)),
       "jmp" | "JMP" => Ok((Instruction::JMP, 2)),
-      "je" | "JE" => Ok((Instruction::IFEQ, 2)),
-      "jne" | "JNE" => Ok((Instruction::IFNE, 2)),
-      "jge" | "JGE" => Ok((Instruction::IFGE, 2)),
-      "jgt" | "JGT" => Ok((Instruction::IFGT, 2)),
-      "jle" | "JLE" => Ok((Instruction::IFLE, 2)),
-      "jlt" | "JLT" => Ok((Instruction::IFLT, 2)),
+      "je" | "JE" => Ok((Instruction::JE, 2)),
+      "jne" | "JNE" => Ok((Instruction::JNE, 2)),
+      "jge" | "JGE" => Ok((Instruction::JGE, 2)),
+      "jgt" | "JGT" => Ok((Instruction::JGT, 2)),
+      "jle" | "JLE" => Ok((Instruction::JLE, 2)),
+      "jlt" | "JLT" => Ok((Instruction::JLT, 2)),
       "call" | "CALL" => Ok((Instruction::CALL, 2)),
       "fmov" | "FMOV" => Ok((Instruction::FMOV, 3)),
       "fadd" | "FADD" => Ok((Instruction::FADD, 4)),
@@ -73,12 +67,6 @@ impl Instruction {
       "fmul" | "FMUL" => Ok((Instruction::FMUL, 4)),
       "fdiv" | "FDIV" => Ok((Instruction::FDIV, 4)),
       "fmod" | "FMOD" => Ok((Instruction::FMOD, 4)),
-      "fifeq" | "FIFEQ" => Ok((Instruction::FIFEQ, 3)),
-      "fifne" | "FIFNE" => Ok((Instruction::FIFNE, 3)),
-      "fifge" | "FIFGE" => Ok((Instruction::FIFGE, 3)),
-      "fifgt" | "FIFGT" => Ok((Instruction::FIFGT, 3)),
-      "fifle" | "FIFLE" => Ok((Instruction::FIFLE, 3)),
-      "fiflt" | "FIFLT" => Ok((Instruction::FIFLT, 3)),
       "fpush" | "FPUSH" => Ok((Instruction::FPUSH, 2)),
       "fpop" | "FPOP" => Ok((Instruction::FPOP, 2)),
       "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
@@ -93,9 +81,9 @@ impl Instruction {
   
   pub fn is_farg_nreg(&self) -> bool {
     match self {
-      Instruction::JMP | Instruction::IFEQ | Instruction::IFNE |
-      Instruction::IFLT | Instruction::IFLE | Instruction::IFGT |
-      Instruction::IFGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV => true,
+      Instruction::JMP | Instruction::JE | Instruction::JNE |
+      Instruction::JLT | Instruction::JLE | Instruction::JGT |
+      Instruction::JGE | Instruction::CALL | Instruction::PUSH | Instruction::FPUSH | Instruction::MOV => true,
       _ => false
     }
   }
@@ -119,13 +107,13 @@ impl Args {
             Ok(s) => s,
             Err(..) => return Err("Invalid register")
           };
-          if id <= 25 {
+          if id < 25 {
             return Ok(Args::REGISTER(id));
           }
           return Err("Invalid register number");
         }
         else if s == "sp" {
-          return Ok(Args::REGISTER(26));
+          return Ok(Args::REGISTER(25));
         }
         for def in defines {
           if s == &def.0 {
