@@ -1,8 +1,14 @@
 extern crate mmap_rs;
+use std::hint::unreachable_unchecked;
+
 use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
 static SIZE: usize = 2 * 1024 * 1024;
 
-pub struct ResArea(pub String, pub usize, pub usize);
+pub const READ: usize = 0b001;
+pub const WRITE: usize = 0b010;
+pub const EXEC: usize = 0b100;
+
+pub struct ResArea(pub String, pub usize, pub usize, pub usize);
 pub struct Memory {
   mem: MmapMut,
   size: usize,
@@ -22,8 +28,8 @@ impl Memory {
     }
   }
   
-  fn new_area(&mut self, name: &str, start: usize, end: usize) {
-    let area = ResArea(name.to_string(), start, end);
+  fn new_area(&mut self, name: &str, start: usize, end: usize, perm: usize) {
+    let area = ResArea(name.to_string(), start, end, perm);
     self.areas.push(area);
   }
   
@@ -36,6 +42,9 @@ impl Memory {
          if i.2 - i.1 + 1 < buf.len() {
            panic!("Writing beyond the limits of region {area}");
          }
+         if (i.3 & WRITE) == 0 {
+          panic!("Region {area} does not have write access");
+        }
          for i in buf {
            self.mem[offset] = *i;
            offset += 1;
@@ -56,6 +65,10 @@ impl Memory {
          if i.2 - i.1 + 1 < len {
            panic!("Reading beyond the limits of region {area}");
          }
+
+         if i.3 & READ == 0 {
+           panic!("Region {area} does not have read access");
+         }
          return &self.mem[offset..(offset + len)];
       }
     }
@@ -72,9 +85,23 @@ impl Memory {
     panic!("Area {name} not found")
   }
   
+  pub fn find_area(&self, start: usize, end: usize) -> &ResArea {
+    for area in &self.areas {
+      if area.1 <= start && area.2 >= end {
+        return area;
+      }
+    }
+
+    unsafe { unreachable_unchecked() }
+  }
+
   pub fn raw_write(&mut self, mut beg: usize, end: usize, buf: &[u8]) {
     if end >= self.size {
       panic!("Writing beyond memory limits is not allowed");
+    }
+    let area = self.find_area(beg, end);
+    if area.3 & WRITE == 0 {
+      panic!("Writing to region with no write access");
     }
     for unit in buf {
       self.mem[beg] = *unit;
@@ -86,16 +113,20 @@ impl Memory {
     if end >= self.size {
       panic!("Writing beyond memory limits is not allowed");
     }
+    let area = self.find_area(beg, end);
+    if area.3 & READ == 0 {
+      panic!("Reading from region with no read access");
+    }
     &self.mem[beg..end]
   }
   
   pub fn init(code: &[u8]) -> Self {
     let mut mem = Memory::new(SIZE);
-    mem.new_area("Code", 0x00000, 0x7DFFF);
+    mem.new_area("Code", 0x00000, 0x7DFFF, READ | EXEC | WRITE);
     mem.write("Code", 0x00000, code);
-    mem.new_area("Data", 0x7E000, 0xFDFFF);
-    mem.new_area("Stack", 0xFE000, 0xFFFFF);
-    mem.new_area("Heap", 0xFF000, SIZE - 1);
+    mem.new_area("Data", 0x7E000, 0xFDFFF, READ);
+    mem.new_area("Stack", 0xFE000, 0xFFFFF, READ | WRITE);
+    mem.new_area("Heap", 0xFF000, SIZE - 1, READ | WRITE);
     mem
   }
 }

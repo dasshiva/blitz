@@ -224,13 +224,15 @@ impl Instr {
   }
 }
 
+#[derive(Debug)]
 pub enum Attrs {
   FIRMWARE
 }
 
+#[derive(Debug)]
 pub struct Attr(pub Attrs, pub Option<Token>);
 impl Attr {
-  pub fn file_new(name: &str, _arg: Option<Token>) -> Result<Self, &'static str> {
+  pub fn new(name: &str, _arg: Option<Token>) -> Result<Self, &'static str> {
     match name {
       "firmware" => Ok(Self(Attrs::FIRMWARE, None)),
       _ => Err ("Unknown attribute or attribute not expected here")
@@ -241,7 +243,8 @@ impl Attr {
 #[derive(Debug)]
 pub struct Function {
  pub name: String,
- pub ins: Vec<Instr>
+ pub ins: Vec<Instr>,
+ pub attrs: Option<Vec<Attr>>,
 }
 
 impl Function {
@@ -252,7 +255,8 @@ impl Function {
     };
     Ok(Self {
       name,
-      ins: Vec::new()
+      ins: Vec::new(),
+      attrs: Some(Vec::new())
     })
   }
   
@@ -265,7 +269,6 @@ pub struct Define(String, Token);
 
 pub struct Parser {
   define: Vec<Define>,
-  pub attrs: Option<Vec<Attr>>,
   pub funcs: Vec<Function>,
   state: u8
 }
@@ -275,7 +278,6 @@ impl Parser {
     Self {
       define: Vec::new(),
       funcs: Vec::new(),
-      attrs: None,
       state: 0u8
     }
   }
@@ -297,16 +299,6 @@ impl Parser {
             Ok(s) => self.funcs.push(s),
             Err(e) => return Err(e)
           }
-        }
-        Token::ATTR(s) => {
-          let attr = Attr::file_new(&s, target.get(1).cloned())?;
-          if self.attrs.is_none() {
-            let mut vector: Vec<Attr> = Vec::new();
-            vector.push(attr);
-            self.attrs = Some(vector);
-            return Ok(());
-          }
-          self.attrs.as_mut().unwrap().push(attr);
         }
         Token::INCLUDE => {
           if target.len() < 2 {
@@ -372,6 +364,12 @@ impl Parser {
             inlabel = true;
             self.funcs.push(Function::new(&Token::IDENT(s.to_string()))?);
           } 
+        }
+        Token::ATTR(s) => {
+          let mut this_func = self.funcs.pop().unwrap();
+          let attr = Attr::new(&s, target.get(1).cloned())?;
+          this_func.attrs.as_mut().unwrap().push(attr);
+          self.funcs.push(this_func);
         }
         Token::ENDFUNC => {
           self.state = 0;

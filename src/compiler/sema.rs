@@ -1,5 +1,5 @@
 use crate::r#proc::Unit;
-use crate::parser::Args::*;
+use crate::parser::{Args::*, Attr, Attrs};
 
 const MAGIC: u32 = 0xAFC;
 const MAJOR: u16 = 0x1;
@@ -104,6 +104,11 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
               panic!("Function or label {s} not found");
             }
           } 
+        }
+      }
+      for attr in func.attrs.as_ref().unwrap() {
+        match attr.0 {
+          Attrs::FIRMWARE => opcode |= 1 << 0
         }
       }
       f.push(Ins {

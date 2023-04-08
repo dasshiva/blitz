@@ -1,5 +1,5 @@
 func main
-  inc r1
+  push r0
   set r1, 1
   clear r1, 1
   ret

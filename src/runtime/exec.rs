@@ -8,8 +8,9 @@ const MAJOR: u16 = 0x1;
 const MINOR: u16 = 0x0;
 
 pub struct Cpu {
-  regs: Vec<usize>,
-  fregs: Vec<f64>,
+  regs: [usize; 27],
+  fregs: [f64; 25],
+  special: [usize; 6],
   memory: Memory,
 }
 
@@ -87,20 +88,16 @@ fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   args_vec.push(read_args(arg1, code, &mut pc));
   args_vec.push(read_args(arg2, code, &mut pc));
   args_vec.push(read_args(arg3, code, &mut pc));
+  println!("{}", arg & (1 << 0) != 0);
   (args_vec, pc)
 }
 
 impl Cpu {
   fn new(memory: Memory) -> Self {
-    let mut regs: Vec<usize> = Vec::with_capacity(27);
-    let mut fregs: Vec<f64> = Vec::with_capacity(27);
-    for _ in 0..27 {
-      regs.push(0);
-      fregs.push(0.0);
-    }
     Self {
-      regs,
-      fregs,
+      regs: [0usize; 27],
+      fregs: [0.0f64; 25],
+      special: [0usize; 6],
       memory
     }
   }
