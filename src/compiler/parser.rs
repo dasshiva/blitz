@@ -15,7 +15,7 @@ pub enum Instruction {
   SHL = 10,
   SHR = 11,
   JMP = 12,
-  JE= 13,
+  JE = 13,
   JNE = 14,
   JGE = 15,
   JGT = 16,
@@ -78,7 +78,7 @@ impl Instruction {
       "finc" | "FINC" => Ok((Instruction::FINC, 2)),
       "fdec" | "FDEC" => Ok((Instruction::FDEC, 2)),
       "set" | "SET" => Ok((Instruction::SET, 3)),
-      "clear" | "clear" => Ok((Instruction::CLEAR, 3)),
+      "clear" | "CLEAR" => Ok((Instruction::CLEAR, 3)),
       "fpush" | "FPUSH" => Ok((Instruction::FPUSH, 2)),
       "fpop" | "FPOP" => Ok((Instruction::FPOP, 2)),
       "push" | "PUSH" => Ok((Instruction::PUSH, 2)),
@@ -141,7 +141,7 @@ impl Args {
           Ok(s) => s,
           Err(..) => unreachable!()
         };
-        let mut reg = 0u8;
+        let reg;
         match &split[0] {
           Token::IDENT(..) => {
             match Args::new(&split[0], defines)? {
@@ -230,7 +230,7 @@ pub enum Attrs {
 
 pub struct Attr(pub Attrs, pub Option<Token>);
 impl Attr {
-  pub fn file_new(name: &str, arg: Option<Token>) -> Result<Self, &'static str> {
+  pub fn file_new(name: &str, _arg: Option<Token>) -> Result<Self, &'static str> {
     match name {
       "firmware" => Ok(Self(Attrs::FIRMWARE, None)),
       _ => Err ("Unknown attribute or attribute not expected here")
@@ -282,7 +282,7 @@ impl Parser {
   
   pub fn parse(&mut self, target: Vec<Token>) -> Result<(), &str> {
     let mut inlabel = false;
-    let mut label = Function::new(&Token::IDENT("".to_string()))?;
+    let label;
     if target.len() == 0 {
       return Ok(());
     }
