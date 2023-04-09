@@ -46,7 +46,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
     let mut size = 0;
     for ins in &func.ins {
       let mut ins_size = 0;
-      let mut opcode = (ins.name as u32) << 16;
+      let mut opcode = (ins.name as u32) << 22;
       if ins.len == 1 {
         f.push(Ins {
           opcode,
@@ -58,32 +58,32 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
         continue;
       }
       ins_size += 4;
-      let mut chunk = 11;
+      let mut chunk = 15;
       let mut args_vec: Vec<Args> = Vec::new();
       for args in ins.args.as_ref().unwrap() {
         match args {
           INT(i) => {
             args_vec.push((Some(*i), None));
             ins_size += 8;
-            opcode |= 30 << chunk;
-            chunk -= 5;
+            opcode |= (22 & 0x7F) << chunk;
+            chunk -= 7;
           }
           DECIMAL(d) => {
             args_vec.push((None, Some(*d)));
             ins_size += 8;
-            opcode |= 31 << chunk;
-            chunk -= 5;
+            opcode |= (23 & 0x7F) << chunk;
+            chunk -= 7;
           }
           REGISTER(r) => {
-            opcode |= (*r as u32) << chunk;
-            chunk -= 5;
+            opcode |= ((*r as u32) & 0x7F) << chunk;
+            chunk -= 7;
           }
           OFFSET(reg, off) => {
-            let arg: u64 = ((*reg as u64) << 59) | (*off as u64);
+            let arg: u64 = ((*reg as u64) << 57) | (*off as u64);
             let actual= unsafe { std::mem::transmute::<u64, i64>(arg) };
             ins_size += 8;
-            opcode |= 29 << chunk;
-            chunk -= 5;
+            opcode |= (21 & 0x7F) << chunk;
+            chunk -= 7;
             args_vec.push((Some(actual), None));
           }
           STRING(s) => {
@@ -93,8 +93,8 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
                 let off = unsafe { std::mem::transmute::<usize, i64>(i.0) };
                 args_vec.push((Some(off), None));
                 ins_size += 8;
-                opcode |= 30 << chunk;
-                chunk -= 5;
+                opcode |= (22 & 0x7F) << chunk;
+                chunk -= 7;
                 found = true;
                 break;
               }
@@ -126,7 +126,6 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
       ins: f,
       size,
     });
-    println!("{offset_table:?}");
   }
   
   SemUnit {

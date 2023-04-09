@@ -8,8 +8,8 @@ const MAJOR: u16 = 0x1;
 const MINOR: u16 = 0x0;
 
 pub struct Cpu {
-  regs: [usize; 27],
-  fregs: [f64; 25],
+  regs: [usize; 22],
+  fregs: [f64; 20],
   special: [usize; 6],
   memory: Memory,
 }
@@ -54,20 +54,20 @@ impl Args {
 
 fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
   match value {
-    0..=26 => Args::REG(value),
-    29 => {
+    0..=20 => Args::REG(value),
+    21 => {
       let num = utils::make_u64(&code[*offset..(*offset + 8)]);
       *offset += 8;
-      let reg = (num >> 59) as u8;
-      let off = num & ((1 << 59) - 1);
+      let reg = (num >> 57) as u8;
+      let off = num & ((1 << 57) - 1);
       Args::OFFSET(reg, off)
     }
-    30 => {
+    22 => {
       let num = utils::make_u64(&code[*offset..(*offset + 8)]);
       *offset += 8;
       Args::INT(num)
     }
-    31 => {
+    23 => {
       let num = utils::make_u64(&code[*offset..(*offset + 8)]);
       *offset += 8;
       let arg = unsafe { std::mem::transmute::<u64, f64>(num) };
@@ -80,23 +80,22 @@ fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
 fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   let mut pc = offset;
   let mut args_vec: Vec<Args> = Vec::with_capacity(3);
-  let arg = (ins & 0xFFFF) as u16;
-  let arg1 = (arg >> 11) as u8;
-  let arg2 = ((arg >> 6) & 31) as u8;
-  let arg3 = ((arg >> 1) & 31) as u8;
+  let arg1 = ((ins >> 15) & 127) as u8;
+  let arg2 = ((ins >> 8) & 127) as u8;
+  let arg3 = ((ins >> 1) & 127) as u8;
   pc += 4;
   args_vec.push(read_args(arg1, code, &mut pc));
   args_vec.push(read_args(arg2, code, &mut pc));
   args_vec.push(read_args(arg3, code, &mut pc));
-  println!("{}", arg & (1 << 0) != 0);
+  println!("{}", ins & (1 << 0) != 0);
   (args_vec, pc)
 }
 
 impl Cpu {
   fn new(memory: Memory) -> Self {
     Self {
-      regs: [0usize; 27],
-      fregs: [0.0f64; 25],
+      regs: [0usize; 22],
+      fregs: [0.0f64; 20],
       special: [0usize; 6],
       memory
     }
@@ -120,7 +119,7 @@ impl Cpu {
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     let offset = utils::make_u64(&code[8..16]);
     let sp = self.memory.get_area("Stack");
-    self.regs[25] = sp.2;
+    self.regs[20] = sp.2;
     self.real_exec(offset as usize);
   }
   
@@ -130,7 +129,7 @@ impl Cpu {
     let mut depth: Vec<usize> = Vec::new();
     loop {
       let ins = utils::make_u32(&code[pc..(pc + 4)]);
-      let opcode = ins >> 16;
+      let opcode = ins >> 22;
       let (args, new) = decode(ins, code, pc);
       match opcode {
         0 => {},
@@ -195,12 +194,12 @@ impl Cpu {
           let offset = args[0].get_int() as usize;
           let res;
           match opcode - 13 {
-            0 => res = (self.regs[26] & (1 << 0)) != 0,
-            1 => res = (self.regs[26] & (1 << 0)) == 0,
-            2 => res = (self.regs[26] & (1 << 1)) != 0 || (self.regs[26] & (1 << 0)) != 0,
-            3 => res = (self.regs[26] & (1 << 1)) != 0,
-            4 => res = (self.regs[26] & (1 << 2)) != 0 || (self.regs[26] & (1 << 0)) != 0,
-            5 => res = self.regs[26] & (1 << 2) != 0,
+            0 => res = (self.regs[21] & (1 << 0)) != 0,
+            1 => res = (self.regs[21] & (1 << 0)) == 0,
+            2 => res = (self.regs[21] & (1 << 1)) != 0 || (self.regs[21] & (1 << 0)) != 0,
+            3 => res = (self.regs[21] & (1 << 1)) != 0,
+            4 => res = (self.regs[21] & (1 << 2)) != 0 || (self.regs[21] & (1 << 0)) != 0,
+            5 => res = self.regs[21] & (1 << 2) != 0,
             _ => unsafe { unreachable_unchecked() }
           }
           if res {
@@ -292,16 +291,16 @@ impl Cpu {
             _ => unreachable!()
           };
           let num = utils::u64_to_u8(arg1 as u64);
-          self.regs[25] -= 8;
+          self.regs[20] -= 8;
           let mem = unsafe {
             std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
           };
-          mem.write("Stack", self.regs[25], &num);
+          mem.write("Stack", self.regs[20], &num);
         }
         33 => {
           let reg = args[0].get_reg() as usize;
-          let word = self.memory.read("Stack", self.regs[25], 8);
-          self.regs[25] += 8;
+          let word = self.memory.read("Stack", self.regs[20], 8);
+          self.regs[20] += 8;
           self.fregs[reg] = unsafe { std::mem::transmute::<u64, f64>(utils::make_u64(&word)) };
         }
         34 => {
@@ -311,16 +310,16 @@ impl Cpu {
             _ => unreachable!()
           };
           let num = utils::u64_to_u8(arg1 as u64);
-          self.regs[25] -= 8;
+          self.regs[20] -= 8;
           let mem = unsafe {
             std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
           };
-          mem.write("Stack", self.regs[25], &num);
+          mem.write("Stack", self.regs[20], &num);
         }
         35 => {
           let reg = args[0].get_reg() as usize;
-          let word = self.memory.read("Stack", self.regs[25], 8);
-          self.regs[25] += 8;
+          let word = self.memory.read("Stack", self.regs[20], 8);
+          self.regs[20] += 8;
           self.regs[reg] = utils::make_u64(&word) as usize;
         }
         36 => {
@@ -347,11 +346,11 @@ impl Cpu {
             _ => unreachable!()
           };
           if arg1 == arg2 {
-            self.regs[26] |= 1 << 0;
+            self.regs[21] |= 1 << 0;
           } else if arg1 > arg2 {
-            self.regs[26] |= 1 << 1;
+            self.regs[21] |= 1 << 1;
           } else if arg1 < arg2 {
-            self.regs[26] |= 1 << 2;
+            self.regs[21] |= 1 << 2;
           }
         }
         39 => {
@@ -366,11 +365,11 @@ impl Cpu {
             _ => unreachable!()
           };
           if arg1 == arg2 {
-            self.regs[26] |= 1 << 0;
+            self.regs[21] |= 1 << 0;
           } else if arg1 > arg2 {
-            self.regs[26] |= 1 << 1;
+            self.regs[21] |= 1 << 1;
           } else if arg1 < arg2 {
-            self.regs[26] |= 1 << 2;
+            self.regs[21] |= 1 << 2;
           }
         }
         _ => panic!("Invalid instruction {}", ins >> 16)
