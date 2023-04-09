@@ -1,5 +1,5 @@
 use crate::r#proc::Unit;
-use crate::parser::{Args::*, Attr, Attrs};
+use crate::parser::{Args::*, Attrs};
 
 const MAGIC: u32 = 0xAFC;
 const MAJOR: u16 = 0x1;
@@ -106,11 +106,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
           } 
         }
       }
-      for attr in func.attrs.as_ref().unwrap() {
-        match attr.0 {
-          Attrs::FIRMWARE => opcode |= 1 << 0
-        }
-      }
+      
       f.push(Ins {
        opcode,
        args: args_vec,
@@ -122,6 +118,14 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
       header.start = offset;
     }
     offset += size;
+    for attr in func.attrs.as_ref().unwrap() {
+      for ins in &mut f {
+        match attr.0 {
+          Attrs::FIRMWARE => ins.opcode |= 1 << 0
+        }
+      }
+    }
+
     funcs.push(Func {
       ins: f,
       size,

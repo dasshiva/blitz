@@ -1,5 +1,12 @@
+func handler
+.firmware
+  syscall 0
+  ret
+end
+
 func _start
 .firmware
+  setex handler
   call main
   ret
 end

@@ -42,6 +42,8 @@ pub enum Instruction {
     RET = 37,
     CMP = 38,
     FCMP = 39,
+    SETEX = 40,
+    SYSCALL = 50
 }
 
 impl Instruction {
@@ -87,14 +89,16 @@ impl Instruction {
             "ret" | "RET" => Ok((Instruction::RET, 1)),
             "cmp" | "CMP" => Ok((Instruction::CMP, 3)),
             "fcmp" | "FCMP" => Ok((Instruction::FCMP, 3)),
+            "setex" | "SETEX" => Ok((Instruction::SETEX, 2)),
+            "syscall" | "SYSCALL" => Ok((Instruction::SYSCALL, 2)),
             _ => Err("Invalid instruction"),
         }
     }
 
     pub fn is_farg_nreg(&self) -> bool {
         match self {
-            Instruction::JMP
-            | Instruction::JE
+            Instruction::JE
+            | Instruction::JMP
             | Instruction::JNE
             | Instruction::JLT
             | Instruction::JLE
@@ -105,6 +109,8 @@ impl Instruction {
             | Instruction::FPUSH
             | Instruction::MOV
             | Instruction::INC
+            | Instruction::SETEX
+            | Instruction::SYSCALL
             | Instruction::DEC => true,
             _ => false,
         }

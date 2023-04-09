@@ -1,6 +1,5 @@
 pub(crate) use std::hint::unreachable_unchecked;
-use std::ops::{IndexMut, Index};
-use crate::memory::Memory;
+use crate::memory::{Memory, EXEC};
 use crate::utils;
 
 const MAGIC: u32 = 0xAFC;
@@ -50,6 +49,7 @@ enum Args {
   INT(u64),
   DECIMAL(f64),
   OFFSET(u8, u64),
+  FLAG(bool),
   REG(u8),
 }
 
@@ -81,6 +81,13 @@ impl Args {
       _ => panic!("Not an integer!")
     }
   }
+
+  pub fn get_flag(&self) -> bool {
+    match self {
+      Args::FLAG(r) => *r,
+      _ => panic!("Not a flag!")
+    }
+  }
 }
 
 fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
@@ -110,7 +117,7 @@ fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
 
 fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   let mut pc = offset;
-  let mut args_vec: Vec<Args> = Vec::with_capacity(3);
+  let mut args_vec: Vec<Args> = Vec::with_capacity(4);
   let arg1 = ((ins >> 15) & 127) as u8;
   let arg2 = ((ins >> 8) & 127) as u8;
   let arg3 = ((ins >> 1) & 127) as u8;
@@ -118,7 +125,7 @@ fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   args_vec.push(read_args(arg1, code, &mut pc));
   args_vec.push(read_args(arg2, code, &mut pc));
   args_vec.push(read_args(arg3, code, &mut pc));
-  println!("{}", ins & (1 << 0) != 0);
+  args_vec.push(Args::FLAG(ins & (1 << 0) != 0));
   (args_vec, pc)
 }
 
@@ -203,8 +210,18 @@ impl Cpu {
             0 => self.regs.set(reg, arg1 + arg2),
             1 => self.regs.set(reg, arg1 - arg2),
             2 => self.regs.set(reg, arg1 * arg2),
-            3 => self.regs.set(reg, arg1 / arg2),
-            4 => self.regs.set(reg, arg1 % arg2),
+            3 => {
+              if arg2 == 0 {
+                self.throw(0, pc);
+              }
+              self.regs.set(reg, arg1 / arg2)
+            }
+            4 => {
+              if arg2 == 0 {
+                self.throw(0, pc);
+              }
+              self.regs.set(reg, arg1 % arg2)
+            }
             5 => self.regs.set(reg, arg1 | arg2),
             6 => self.regs.set(reg, arg1 & arg2),
             7 => self.regs.set(reg, arg1 ^ arg2),
@@ -215,10 +232,20 @@ impl Cpu {
             }
           }
         }
-        12 | 19 => {
-          let offset = args[0].get_int() as usize;
-          depth.push(new);
-          pc = offset;
+        12 => {
+          let arg = match &args[0] {
+            Args::REG(r) => self.regs.get(*r as usize),
+            Args::INT(s) => *s as usize,
+            _ => unsafe {
+                unreachable_unchecked()
+            }
+          };
+          let perm = self.memory.find_permission(arg);
+          if perm & EXEC == 0 {
+            self.special[3] = arg;
+            self.throw(1, pc);
+          }
+          pc = arg;
           continue;
         }
         13..=18 => {
@@ -237,6 +264,12 @@ impl Cpu {
             pc = offset;
             continue;
           }
+        }
+        19 => {
+          let offset = args[0].get_int() as usize;
+          depth.push(new);
+          pc = offset;
+          continue;
         }
         20 => {
           let reg = args[0].get_reg() as usize;
@@ -258,8 +291,18 @@ impl Cpu {
             0 => self.fregs[reg] = arg1 + arg2,
             1 => self.fregs[reg] = arg1 - arg2,
             2 => self.fregs[reg] = arg1 * arg2,
-            3 => self.fregs[reg] = arg1 / arg2,
-            4 => self.fregs[reg] = arg1 % arg2,
+            3 => {
+              if arg2 == 0.0f64 {
+                self.throw(0, pc);
+              }
+              self.fregs[reg] = arg1 / arg2;
+            }
+            4 => {
+              if arg2 == 0.0f64 {
+                self.throw(0, pc);
+              }
+              self.fregs[reg] = arg1 / arg2;
+            }
             _ => unreachable!()
           }
         }
@@ -403,10 +446,52 @@ impl Cpu {
              self.regs.set(81, self.regs.get(81) | 1 << 2);
           }
         }
-        _ => panic!("Invalid instruction {}", ins >> 16)
+        40 => {
+          if args[3].get_flag() {
+            match opcode - 40 {
+              0 => self.special[0] = args[0].get_int() as usize,
+              _ => unsafe {
+                  unreachable_unchecked()
+              }
+            }
+          }
+          else {
+            self.throw(3, pc);
+          }
+        }
+        50 => {
+          let ty = args[0].get_int();
+          if ty == 0 && !args[3].get_flag() {
+            panic!("Attempt to execute privileged instruction with privilege bit off")
+          }
+          match ty {
+            0 => {
+              match self.special[1] {
+                0 => panic!("Attempt to divide by zero at pc = {}", self.special[2]),
+                1 => panic!("Attempt to execute from memory region marked not executable at pc = {}", self.special[2]),
+                2 => panic!("Illegal opcode {} at pc = {}", self.special[3], self.special[2]),
+                3 => panic!("Attempt to execute privileged instruction with privilege bit off at pc = {}", self.special[2]),
+                _ => unreachable!()
+              }
+            }
+           _ => unreachable!()
+         }
+       }
+      _ => {
+        self.special[3] = (opcode >> 22) as usize;
+        self.throw(2, pc);
       }
+    }
       pc = new;
       println!("{:?}, {pc}", self.regs);
     }
+  }
+
+  #[allow(mutable_transmutes)]
+  fn throw(&self, extype: usize, pc: usize) {
+    let inst = unsafe { std::mem::transmute::<&Cpu, &mut Cpu>(self) };
+    inst.special[1] = extype;
+    inst.special[2] = pc;
+    inst.real_exec(self.special[0]);
   }
 }

@@ -82,13 +82,24 @@ impl Memory {
         return area;
       }
     }
-    panic!("Area {name} not found")
+    
+    unsafe { unreachable_unchecked() }
   }
   
   pub fn find_area(&self, start: usize, end: usize) -> &ResArea {
     for area in &self.areas {
       if area.1 <= start && area.2 >= end {
         return area;
+      }
+    }
+
+    unsafe { unreachable_unchecked() }
+  }
+
+  pub fn find_permission(&self, addr: usize) -> usize {
+    for area in &self.areas {
+      if area.1 <= addr && area.2 >= addr {
+        return area.3;
       }
     }
 

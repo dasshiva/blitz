@@ -1,6 +1,5 @@
 func main
-  push r0
-  set b1, 1
-  clear b1, 1
+  mov r0, main
+  div r1, r0, 0
   ret
 end
