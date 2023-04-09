@@ -1,6 +1,6 @@
 func main
   push r0
-  set r1, 1
-  clear r1, 1
+  set b1, 1
+  clear b1, 1
   ret
 end

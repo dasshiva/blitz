@@ -65,13 +65,13 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
           INT(i) => {
             args_vec.push((Some(*i), None));
             ins_size += 8;
-            opcode |= (22 & 0x7F) << chunk;
+            opcode |= (81 & 0x7F) << chunk;
             chunk -= 7;
           }
           DECIMAL(d) => {
             args_vec.push((None, Some(*d)));
             ins_size += 8;
-            opcode |= (23 & 0x7F) << chunk;
+            opcode |= (82 & 0x7F) << chunk;
             chunk -= 7;
           }
           REGISTER(r) => {
@@ -82,7 +82,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
             let arg: u64 = ((*reg as u64) << 57) | (*off as u64);
             let actual= unsafe { std::mem::transmute::<u64, i64>(arg) };
             ins_size += 8;
-            opcode |= (21 & 0x7F) << chunk;
+            opcode |= (83 & 0x7F) << chunk;
             chunk -= 7;
             args_vec.push((Some(actual), None));
           }
@@ -93,7 +93,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
                 let off = unsafe { std::mem::transmute::<usize, i64>(i.0) };
                 args_vec.push((Some(off), None));
                 ins_size += 8;
-                opcode |= (22 & 0x7F) << chunk;
+                opcode |= (81 & 0x7F) << chunk;
                 chunk -= 7;
                 found = true;
                 break;
