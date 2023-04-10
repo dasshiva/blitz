@@ -1,5 +1,7 @@
 func main
   mov r0, main
+  push r5
+  pop r5
   div r1, r0, 0
   ret
 end
