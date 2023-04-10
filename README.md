@@ -1,4 +1,4 @@
-# Blitz - A Virtual machine to take ensure portability
+# Blitz - A Virtual machine to ensure portability
 
 Blitz is a project that aims to solve portability across platforms by providing a simple assembly language to target and a virtual machine which runs the assembled code. The same assembly runs on all platforms thus allowing code to be truly cross platform and WORA(Write-Once-Run-Anywhere), no matter which language it is written in.
 
