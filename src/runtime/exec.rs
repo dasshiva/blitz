@@ -1,5 +1,6 @@
 pub(crate) use std::hint::unreachable_unchecked;
 use crate::memory::{Memory, EXEC};
+use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
 use crate::utils;
 
 const MAGIC: u32 = 0xAFC;
@@ -35,13 +36,6 @@ impl Regs {
       _ => unsafe { unreachable_unchecked() }
     }
   }
-}
-
-pub struct Cpu {
-  regs: Regs,
-  fregs: [f64; 20],
-  special: [usize; 6],
-  memory: Memory,
 }
 
 #[derive(Debug)]
@@ -129,17 +123,27 @@ fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   (args_vec, pc)
 }
 
+pub struct Cpu {
+  regs: Regs,
+  fregs: [f64; 20],
+  special: [usize; 6],
+  memory: MmapMut
+}
+
 impl Cpu {
-  fn new(memory: Memory) -> Self {
+  fn new(mem: usize) -> Self {
     Self {
       regs: Regs::new(),
       fregs: [0.0f64; 20],
       special: [0usize; 6],
-      memory
+      memory: match MmapOptions::new(mem).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
+        Ok(s) => s,
+        Err(e) => panic!("Error allocating memory {e}")
+      }
     }
   }
   
-  pub fn init(memory: Memory) -> Self {
+  pub fn init() -> Self {
     let header = memory.read("Code", 0, 8);
     let magic = utils::make_u32(&header[0..4]);
     if magic != MAGIC {
@@ -150,7 +154,7 @@ impl Cpu {
     if major > MAJOR || minor > MINOR {
       panic!("Unsupported blitz version {major}.{minor}");
     }
-    Cpu::new(memory)
+    Cpu::new()
   }
   
   pub fn exec(&mut self) {

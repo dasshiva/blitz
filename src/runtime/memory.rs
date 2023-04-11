@@ -1,38 +1,14 @@
 extern crate mmap_rs;
 use std::hint::unreachable_unchecked;
 
-use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
+use crate::exec::Cpu;
 static SIZE: usize = 2 * 1024 * 1024;
 
 pub const READ: usize = 0b001;
 pub const WRITE: usize = 0b010;
 pub const EXEC: usize = 0b100;
 
-pub struct ResArea(pub String, pub usize, pub usize, pub usize);
-pub struct Memory {
-  mem: MmapMut,
-  size: usize,
-  areas: Vec<ResArea>
-}
-
-impl Memory {
-  pub fn new(size: usize) -> Self {
-   let mem = match MmapOptions::new(size).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
-      Ok(s) => s,
-      Err(e) => panic!("Error allocating memory {e}")
-   };
-    Self {
-      mem,
-      size,
-      areas: Vec::new()
-    }
-  }
-  
-  fn new_area(&mut self, name: &str, start: usize, end: usize, perm: usize) {
-    let area = ResArea(name.to_string(), start, end, perm);
-    self.areas.push(area);
-  }
-  
+impl Cpu {
   pub fn write(&mut self, area: &str, mut offset: usize, buf: &[u8]) {
     for i in &self.areas {
       if i.0 == area {
@@ -129,15 +105,5 @@ impl Memory {
       panic!("Reading from region with no read access");
     }
     &self.mem[beg..end]
-  }
-  
-  pub fn init(code: &[u8]) -> Self {
-    let mut mem = Memory::new(SIZE);
-    mem.new_area("Code", 0x00000, 0x7DFFF, READ | EXEC | WRITE);
-    mem.write("Code", 0x00000, code);
-    mem.new_area("Data", 0x7E000, 0xFDFFF, READ);
-    mem.new_area("Stack", 0xFE000, 0xFFFFF, READ | WRITE);
-    mem.new_area("Heap", 0xFF000, SIZE - 1, READ | WRITE);
-    mem
   }
 }
