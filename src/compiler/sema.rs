@@ -9,7 +9,7 @@ pub struct Header {
   pub magic: u32,
   pub major: u16,
   pub minor: u16,
-  pub start: usize
+  pub start: usize,
 }
 
 type Args = (Option<i64>, Option<f64>);
@@ -35,7 +35,7 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
     magic: MAGIC,
     major: MAJOR,
     minor: MINOR,
-    start: 15
+    start: 15,
   };
   let mut offset = 16usize;
   let mut offset_table: Vec<(usize, String)> = Vec::new();

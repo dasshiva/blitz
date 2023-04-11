@@ -1,109 +1,63 @@
-extern crate mmap_rs;
-use std::hint::unreachable_unchecked;
-
 use crate::exec::Cpu;
-static SIZE: usize = 2 * 1024 * 1024;
 
-pub const READ: usize = 0b001;
-pub const WRITE: usize = 0b010;
-pub const EXEC: usize = 0b100;
+pub const READ: u8 = 0b001;
+pub const WRITE: u8 = 0b010;
+pub const EXEC: u8 = 0b100;
 
 impl Cpu {
-  pub fn write(&mut self, area: &str, mut offset: usize, buf: &[u8]) {
-    for i in &self.areas {
-      if i.0 == area {
-         if i.1 > offset || i.2 < offset {
-           panic!("Offset to write is beyond region {area}'s limits");
-         }
-         if i.2 - i.1 + 1 < buf.len() {
-           panic!("Writing beyond the limits of region {area}");
-         }
-         if (i.3 & WRITE) == 0 {
-          panic!("Region {area} does not have write access");
+    pub fn write(&mut self, mut offset: usize, buf: &[u8]) {
+        match self.check_permission(offset, offset + buf.len(), WRITE) {
+          Ok(..) => {
+            for i in buf {
+              self.memory[offset] = *i;
+              offset += 1;
+            }
+          }
+          Err(e) => {
+            self.special[3] = e as usize;
+            self.throw(1);
+          }
         }
-         for i in buf {
-           self.mem[offset] = *i;
-           offset += 1;
-         }
-         return;
-      }
-    }
-    
-    panic!("Memory region {area} not found");
-  }
-  
-  pub fn read(&self, area: &str, offset: usize, len: usize) -> &[u8] {
-    for i in &self.areas {
-      if i.0 == area {
-         if i.1 > offset || i.2 < offset {
-           panic!("Offset to read is beyond region {area}'s limits");
-         }
-         if i.2 - i.1 + 1 < len {
-           panic!("Reading beyond the limits of region {area}");
-         }
-
-         if i.3 & READ == 0 {
-           panic!("Region {area} does not have read access");
-         }
-         return &self.mem[offset..(offset + len)];
-      }
-    }
-    
-    panic!("Memory region {area} not found")
-  }
-  
-  pub fn get_area(&self, name: &str) -> &ResArea {
-    for area in &self.areas {
-      if area.0 == name {
-        return area;
-      }
-    }
-    
-    unsafe { unreachable_unchecked() }
-  }
-  
-  pub fn find_area(&self, start: usize, end: usize) -> &ResArea {
-    for area in &self.areas {
-      if area.1 <= start && area.2 >= end {
-        return area;
-      }
     }
 
-    unsafe { unreachable_unchecked() }
-  }
+    pub fn check_permission(&self, beg: usize, end: usize, perm: u8) -> Result<(), u8>{
+      let mut first = 0; 
+      let mut second = 0;
+      let mut index = 0;
+      for area in &self.gdt {
+        if area.0 >= beg && area.1 <= beg {
+          if (area.2 & perm) == 0 {
+            return Err(area.2);
+          } 
+          first = index;
+        }
 
-  pub fn find_permission(&self, addr: usize) -> usize {
-    for area in &self.areas {
-      if area.1 <= addr && area.2 >= addr {
-        return area.3;
+        if area.0 >= end && area.1 <= end {
+          if (area.2 & perm) == 0 {
+            return Err(area.2);
+          }
+          second = index + 1;
+          break;
+        }
+        index += 1;
+      }
+
+      for area in &self.gdt[first..second] {
+        if (area.2 & perm) == 0 {
+          return Err(area.2);
+        }
+      }
+      Ok(())
+    }
+
+    pub fn read(&mut self, area: &str, offset: usize, len: usize) -> &[u8] {
+      match self.check_permission(offset, offset + len, READ) {
+        Ok(..) => &self.memory[offset..(offset + len)],
+        Err(e) => {
+          self.special[3] = e as usize;
+          self.throw(1);
+          unreachable!()
+        }
       }
     }
-
-    unsafe { unreachable_unchecked() }
-  }
-
-  pub fn raw_write(&mut self, mut beg: usize, end: usize, buf: &[u8]) {
-    if end >= self.size {
-      panic!("Writing beyond memory limits is not allowed");
-    }
-    let area = self.find_area(beg, end);
-    if area.3 & WRITE == 0 {
-      panic!("Writing to region with no write access");
-    }
-    for unit in buf {
-      self.mem[beg] = *unit;
-      beg += 1;
-    }
-  }
-  
-  pub fn raw_read(&self, beg: usize, end: usize) -> &[u8] {
-    if end >= self.size {
-      panic!("Writing beyond memory limits is not allowed");
-    }
-    let area = self.find_area(beg, end);
-    if area.3 & READ == 0 {
-      panic!("Reading from region with no read access");
-    }
-    &self.mem[beg..end]
-  }
 }

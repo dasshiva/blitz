@@ -1,5 +1,5 @@
 pub(crate) use std::hint::unreachable_unchecked;
-use crate::memory::{Memory, EXEC};
+use crate::memory::{EXEC};
 use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
 use crate::utils;
 
@@ -123,11 +123,14 @@ fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
   (args_vec, pc)
 }
 
+type Area = (usize, usize, u8);
 pub struct Cpu {
-  regs: Regs,
-  fregs: [f64; 20],
-  special: [usize; 6],
-  memory: MmapMut
+  pub regs: Regs,
+  pub fregs: [f64; 20],
+  pub special: [usize; 6],
+  pub gdt: Vec<Area>,
+  pub pc: usize,
+  pub memory: MmapMut
 }
 
 impl Cpu {
@@ -136,37 +139,31 @@ impl Cpu {
       regs: Regs::new(),
       fregs: [0.0f64; 20],
       special: [0usize; 6],
+      gdt: Vec::new(),
       memory: match MmapOptions::new(mem).unwrap().with_flags(MmapFlags::COPY_ON_WRITE).map_mut() {
         Ok(s) => s,
         Err(e) => panic!("Error allocating memory {e}")
-      }
+      },
+      pc: 0
     }
   }
   
-  pub fn init() -> Self {
-    let header = memory.read("Code", 0, 8);
-    let magic = utils::make_u32(&header[0..4]);
+  pub fn init(code: Vec<u8>) -> Self {
+    let magic = utils::make_u32(&code[0..4]);
     if magic != MAGIC {
       panic!("Not a blitz executable!");
     }
-    let major = utils::make_u16(&header[4..6]);
-    let minor = utils::make_u16(&header[6..8]);
-    if major > MAJOR || minor > MINOR {
+    let major = utils::make_u16(&code[4..6]);
+    let minor = utils::make_u16(&code[6..8]);
+    if major != MAJOR || minor != MINOR {
       panic!("Unsupported blitz version {major}.{minor}");
     }
-    Cpu::new()
-  }
-  
-  pub fn exec(&mut self) {
-    let code = self.memory.read("Code", 0x00000, 0x7DFFF);
-    let offset = utils::make_u64(&code[8..16]);
-    let sp = self.memory.get_area("Stack");
-    self.regs.set(80, sp.2);
-    self.real_exec(offset as usize);
+    Cpu::new(2 * 1048 * 1048)
   }
   
   #[allow(mutable_transmutes)]
-  fn real_exec(&mut self, mut pc: usize) {
+  fn exec(&mut self, pc: usize) {
+    self.pc = pc;
     let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     let mut depth: Vec<usize> = Vec::new();
     loop {
@@ -244,13 +241,16 @@ impl Cpu {
                 unreachable_unchecked()
             }
           };
-          let perm = self.memory.find_permission(arg);
-          if perm & EXEC == 0 {
-            self.special[3] = arg;
-            self.throw(1, pc);
+          match self.check_permission(arg, arg + 1, EXEC) {
+            Ok(..) => {
+              pc = arg;
+              continue;
+            }
+            Err(e) => {
+              self.special[3] = e;
+              self.throw(1);
+            }
           }
-          pc = arg;
-          continue;
         }
         13..=18 => {
           let offset = args[0].get_int() as usize;
@@ -297,13 +297,13 @@ impl Cpu {
             2 => self.fregs[reg] = arg1 * arg2,
             3 => {
               if arg2 == 0.0f64 {
-                self.throw(0, pc);
+                self.throw(0);
               }
               self.fregs[reg] = arg1 / arg2;
             }
             4 => {
               if arg2 == 0.0f64 {
-                self.throw(0, pc);
+                self.throw(0);
               }
               self.fregs[reg] = arg1 / arg2;
             }
@@ -460,7 +460,7 @@ impl Cpu {
             }
           }
           else {
-            self.throw(3, pc);
+            self.throw(3);
           }
         }
         50 => {
@@ -472,7 +472,7 @@ impl Cpu {
             0 => {
               match self.special[1] {
                 0 => panic!("Attempt to divide by zero at pc = {}", self.special[2]),
-                1 => panic!("Attempt to execute from memory region marked not executable at pc = {}", self.special[2]),
+                1 => panic!("Attempt to read/execute/write to memory region with insufficient permission = {} at pc = {}", self.special[3], self.special[2]),
                 2 => panic!("Illegal opcode {} at pc = {}", self.special[3], self.special[2]),
                 3 => panic!("Attempt to execute privileged instruction with privilege bit off at pc = {}", self.special[2]),
                 _ => unreachable!()
@@ -483,7 +483,7 @@ impl Cpu {
        }
       _ => {
         self.special[3] = (opcode >> 22) as usize;
-        self.throw(2, pc);
+        self.throw(2);
       }
     }
       pc = new;
@@ -492,10 +492,10 @@ impl Cpu {
   }
 
   #[allow(mutable_transmutes)]
-  fn throw(&self, extype: usize, pc: usize) {
+  pub fn throw(&self, extype: usize) {
     let inst = unsafe { std::mem::transmute::<&Cpu, &mut Cpu>(self) };
     inst.special[1] = extype;
-    inst.special[2] = pc;
-    inst.real_exec(self.special[0]);
+    inst.special[2] = self.pc;
+    inst.exec(self.special[0]);
   }
 }

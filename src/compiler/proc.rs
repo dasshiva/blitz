@@ -24,7 +24,19 @@ pub enum Token {
 impl Token {
   pub fn new(token: &str) -> Self {
     let first = token.chars().nth(0);
-    if first == Some('\'') || first == Some('\"') {
+    if token.starts_with("0x") {
+      match i64::from_str_radix(&token[2..], 16) {
+        Ok(s) => return Token::INT(s),
+        Err(..) => panic!("Malformed hexadecimal integer")
+      }
+    }
+    if token.starts_with("0b") {
+      match i64::from_str_radix(&token[2..], 2) {
+        Ok(s) => return Token::INT(s),
+        Err(..) => panic!("Malformed binary integer")
+      }
+    }
+    else if first == Some('\'') || first == Some('\"') {
       return Token::STRING(token[1..].to_owned());
     }
     else if first == Some('.') {

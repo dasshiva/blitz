@@ -1,9 +1,8 @@
 use std::env;
 use std::panic;
-mod memory;
-use memory::Memory;
 mod exec;
 use exec::Cpu;
+mod memory;
 mod utils;
 
 fn main() {
@@ -21,9 +20,8 @@ fn main() {
   }
   let file = match std::fs::read(&args[1]) {
     Ok(s) => s,
-    Err(e) => panic!("Error: {e}")
+    Err(e) => panic!("Error loading file : {e}")
   };
-  let memory = Memory::init(&file);
-  let mut cpu = Cpu::init(memory);
+  let mut cpu = Cpu::init(file);
   cpu.exec();
 }
