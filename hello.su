@@ -1,7 +1,6 @@
 func main
-  mov r0, main
-  push r5
-  pop r5
-  div r1, r0, 0
+  mov r0, 1
+  mov r1, 65
+  syscall 2
   ret
 end

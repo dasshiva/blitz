@@ -106,7 +106,6 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
           } 
         }
       }
-      
       f.push(Ins {
        opcode,
        args: args_vec,

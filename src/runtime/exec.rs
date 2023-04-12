@@ -1,4 +1,5 @@
 pub(crate) use std::hint::unreachable_unchecked;
+use std::io::{stdin, Read};
 use crate::memory::{EXEC};
 use mmap_rs::{MmapMut, MmapOptions, MmapFlags};
 use crate::utils;
@@ -33,6 +34,16 @@ impl Regs {
       20..=39 => self.0[idx - 20]  = (self.0[idx] & !0xFFFF) | val,
       40..=59 => self.0[idx - 40]  = (self.0[idx] & !0x00000000ffffffff) | val,
       60..=81 => self.0[idx - 60] = val,
+      _ => unsafe { unreachable_unchecked() }
+    }
+  }
+
+  fn size(idx: usize) -> usize {
+    match idx {
+      0..=19 => 1,
+      20..=39 => 2,
+      40..=59 => 4,
+      60..=81 => 8,
       _ => unsafe { unreachable_unchecked() }
     }
   }
@@ -177,18 +188,15 @@ impl Cpu {
           let arg = match &args[1] {
             Args::REG(r) => self.regs.get(*r as usize),
             Args::INT(s) => *s as usize,
-            Args::OFFSET(reg, off) => {
-              let address = self.regs.get(*reg as usize) + *off as usize;
-              self.read_u64(address) as usize
-            }
             _ => unreachable!()
           };
           match &args[0] {
             Args::REG(r) => self.regs.set(*r as usize, arg),
             Args::OFFSET(reg, off) => {
               let address = self.regs.get(*reg as usize) + *off as usize;
+              let size = Regs::size(*reg as usize);
               let content = utils::u64_to_u8(arg as u64);
-              self.write(address, &content);
+              self.write(address, &content[0..size]);
             }
             _ => unreachable!()
           }
@@ -445,7 +453,7 @@ impl Cpu {
               2 => {
                 let beg = args[0].get_int() as usize;
                 let end = args[1].get_int() as usize;
-                let perm = args[1].get_int() as u8;
+                let perm = args[2].get_int() as u8;
                 self.gdt.push((beg, end, perm));
               }
               _ => unsafe {
@@ -469,19 +477,52 @@ impl Cpu {
                 1 => panic!("Attempt to read/execute/write to memory region with insufficient permission = {} at pc = {}", self.special[3], self.special[2]),
                 2 => panic!("Illegal opcode {} at pc = {}", self.special[3], self.special[2]),
                 3 => panic!("Attempt to execute privileged instruction with privilege bit off at pc = {}", self.special[2]),
-                _ => unreachable!()
+                4 => panic!("Attempt to access unknown or illegal device {} at pc = {}", self.special[3], self.special[2]),
+                5 => panic!("Unknown system call number = {} at pc = {}", self.special[3], self.special[2]),
+                _ => panic!("Internal error: Unknown exception type = {}", self.special[1])
               }
             }
-           _ => unreachable!()
-         }
-       }
-      _ => {
-        self.special[3] = (opcode >> 22) as usize;
-        self.throw(2);
-      }
+            1 => {
+              match self.regs.get(0) {
+                0 => {
+                  let mut buf = [0u8; 1];
+                  match stdin().read_exact(&mut buf) {
+                    Ok(..) => {},
+                    Err(e) => panic!("Can't read from stdin {e}")
+                  };
+                  self.regs.set(1, buf[0] as usize);
+                }
+                _ => {
+                  self.special[3] = self.regs.get(0);
+                  self.throw(4);
+                }
+              }
+            }
+            2 => {
+              match self.regs.get(0) {
+                1 => {
+                  let out = (self.regs.get(1) as u8) as char;
+                  print!("{out}");
+                }
+                _ => {
+                  self.special[3] = self.regs.get(0);
+                  self.throw(4);
+                }
+              }
+            }
+            _ => {
+              self.special[3] = ty as usize;
+              self.throw(5);
+            }
+          }
+        }
+        _ => {
+          self.special[3] = (opcode >> 22) as usize;
+          self.throw(2);
+        }
     }
       self.pc = new;
-      println!("{:?}, {opcode}", self.regs);
+      //println!("{:?}, {opcode}", self.regs);
     }
   }
 

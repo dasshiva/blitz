@@ -29,14 +29,14 @@ impl Cpu {
       let mut second = 0;
       let mut index = 0;
       for area in &self.gdt {
-        if area.0 >= beg && area.1 <= beg {
+        if area.0 <= beg && area.1 >= beg {
           if (area.2 & perm) == 0 {
             return Err(area.2);
           } 
           first = index;
         }
 
-        if area.0 >= end && area.1 <= end {
+        if area.0 <= end && area.1 >= end {
           if (area.2 & perm) == 0 {
             return Err(area.2);
           }
