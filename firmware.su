@@ -7,6 +7,11 @@ end
 func _start
 .firmware
   setex handler
+  agdt 0x00000, 0x7DFFF, 0b111
+  agdt 0x7E000, 0xFDFFF, 0b001
+  agdt 0xFE000, 0xFFFFF, 0b011
+  agdt 0xFF000, 0x21847F, 0b011
+  mov sp, 0xFFFFF 
   call main
   ret
 end

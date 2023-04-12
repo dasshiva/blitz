@@ -17,7 +17,7 @@ impl Regs {
 }
 
 impl Regs {
-  fn get(&self, idx: usize) -> usize {
+  pub fn get(&self, idx: usize) -> usize {
     match idx {
       0..=19 => self.0[idx] & 0xFF, 
       20..=39 => self.0[idx - 20] & 0xFFFF,
@@ -109,20 +109,6 @@ fn read_args(value: u8, code: &[u8], offset: &mut usize) -> Args {
   }
 }
 
-fn decode(ins: u32, code: &[u8], offset: usize) -> (Vec<Args>, usize) {
-  let mut pc = offset;
-  let mut args_vec: Vec<Args> = Vec::with_capacity(4);
-  let arg1 = ((ins >> 15) & 127) as u8;
-  let arg2 = ((ins >> 8) & 127) as u8;
-  let arg3 = ((ins >> 1) & 127) as u8;
-  pc += 4;
-  args_vec.push(read_args(arg1, code, &mut pc));
-  args_vec.push(read_args(arg2, code, &mut pc));
-  args_vec.push(read_args(arg3, code, &mut pc));
-  args_vec.push(Args::FLAG(ins & (1 << 0) != 0));
-  (args_vec, pc)
-}
-
 type Area = (usize, usize, u8);
 pub struct Cpu {
   pub regs: Regs,
@@ -158,18 +144,33 @@ impl Cpu {
     if major != MAJOR || minor != MINOR {
       panic!("Unsupported blitz version {major}.{minor}");
     }
-    Cpu::new(2 * 1048 * 1048)
+    let mut cpu = Cpu::new(2 * 1048 * 1048);
+    cpu.write(0, &code);
+    cpu
   }
   
-  #[allow(mutable_transmutes)]
-  fn exec(&mut self, pc: usize) {
+  fn decode(&mut self, ins: u32, offset: usize) -> (Vec<Args>, usize) {
+    let mut pc = offset;
+    let code = self.read(0x00000, 0x7DFFF);
+    let mut args_vec: Vec<Args> = Vec::with_capacity(4);
+    let arg1 = ((ins >> 15) & 127) as u8;
+    let arg2 = ((ins >> 8) & 127) as u8;
+    let arg3 = ((ins >> 1) & 127) as u8;
+    pc += 4;
+    args_vec.push(read_args(arg1, code, &mut pc));
+    args_vec.push(read_args(arg2, code, &mut pc));
+    args_vec.push(read_args(arg3, code, &mut pc));
+    args_vec.push(Args::FLAG(ins & (1 << 0) != 0));
+    (args_vec, pc)
+  }
+  
+  pub fn exec(&mut self, pc: usize) {
     self.pc = pc;
-    let code = self.memory.read("Code", 0x00000, 0x7DFFF);
     let mut depth: Vec<usize> = Vec::new();
     loop {
-      let ins = utils::make_u32(&code[pc..(pc + 4)]);
+      let ins = self.read_u32(self.pc);
       let opcode = ins >> 22;
-      let (args, new) = decode(ins, code, pc);
+      let (args, new) = self.decode(ins, self.pc);
       match opcode {
         0 => {},
         1 => {
@@ -178,7 +179,7 @@ impl Cpu {
             Args::INT(s) => *s as usize,
             Args::OFFSET(reg, off) => {
               let address = self.regs.get(*reg as usize) + *off as usize;
-              utils::make_u64(self.memory.raw_read(address, address + 8)) as usize
+              self.read_u64(address) as usize
             }
             _ => unreachable!()
           };
@@ -187,10 +188,7 @@ impl Cpu {
             Args::OFFSET(reg, off) => {
               let address = self.regs.get(*reg as usize) + *off as usize;
               let content = utils::u64_to_u8(arg as u64);
-              let mem = unsafe {
-               std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
-             };
-              mem.raw_write(address, address + 8, &content);
+              self.write(address, &content);
             }
             _ => unreachable!()
           }
@@ -213,13 +211,13 @@ impl Cpu {
             2 => self.regs.set(reg, arg1 * arg2),
             3 => {
               if arg2 == 0 {
-                self.throw(0, pc);
+                self.throw(0);
               }
               self.regs.set(reg, arg1 / arg2)
             }
             4 => {
               if arg2 == 0 {
-                self.throw(0, pc);
+                self.throw(0);
               }
               self.regs.set(reg, arg1 % arg2)
             }
@@ -243,11 +241,11 @@ impl Cpu {
           };
           match self.check_permission(arg, arg + 1, EXEC) {
             Ok(..) => {
-              pc = arg;
+              self.pc = arg;
               continue;
             }
             Err(e) => {
-              self.special[3] = e;
+              self.special[3] = e as usize;
               self.throw(1);
             }
           }
@@ -265,14 +263,14 @@ impl Cpu {
             _ => unsafe { unreachable_unchecked() }
           }
           if res {
-            pc = offset;
+            self.pc = offset;
             continue;
           }
         }
         19 => {
           let offset = args[0].get_int() as usize;
           depth.push(new);
-          pc = offset;
+          self.pc = offset;
           continue;
         }
         20 => {
@@ -315,12 +313,9 @@ impl Cpu {
             Args::REG(r) => self.regs.set(*r as usize, self.regs.get(*r as usize) + 1),
             Args::OFFSET(reg, off) => {
               let address = self.regs.get(*reg as usize) + *off as usize;
-              let arg = utils::make_u64(self.memory.raw_read(address, address + 8)) + 1;
-              let content = utils::u64_to_u8(arg as u64);
-              let mem = unsafe {
-               std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
-             };
-              mem.raw_write(address, address + 8, &content);
+              let arg = self.read_u64(address) + 1;
+              let content = utils::u64_to_u8(arg);
+              self.write(address, &content);
             }
             _ => unreachable!()
           }
@@ -330,12 +325,9 @@ impl Cpu {
             Args::REG(r) => self.regs.set(*r as usize, self.regs.get(*r as usize) - 1),
             Args::OFFSET(reg, off) => {
               let address = self.regs.get(*reg as usize) + *off as usize;
-              let arg = utils::make_u64(self.memory.raw_read(address, address + 8)) - 1;
-              let content = utils::u64_to_u8(arg as u64);
-              let mem = unsafe {
-               std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
-             };
-              mem.raw_write(address, address + 8, &content);
+              let arg = self.read_u64(address) - 1;
+              let content = utils::u64_to_u8(arg);
+              self.write(address, &content);
             }
             _ => unreachable!()
           }
@@ -363,24 +355,22 @@ impl Cpu {
           self.regs.set(reg, self.regs.get(reg) & !(1 << bit));
         }
         32 => {
-          let arg1 = match &args[0] {
+          let arg = match &args[0] {
             Args::DECIMAL(s) => *s,
             Args::REG(r) => self.fregs[*r as usize],
             _ => unreachable!()
           };
-          let num = utils::u64_to_u8(arg1 as u64);
+          let arg1 = unsafe { std::mem::transmute::<f64, u64>(arg)};
+          let num = utils::u64_to_u8(arg1);
           self.regs.set(80, self.regs.get(80) - 8);
-          let mem = unsafe {
-            std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
-          };
-          mem.write("Stack", self.regs.get(80), &num);
+          self.write(self.regs.get(80), &num);
         }
         33 => {
           let reg = args[0].get_reg() as usize;
-          let word = self.memory.read("Stack", self.regs.get(80), 8);
+          let word = self.read_u64(self.regs.get(80));
           self.regs.set(80, self.regs.get(80) + 8);
-          self.fregs[reg] = unsafe { std::mem::transmute::<u64, f64>(utils::make_u64(&word)) };
-        }
+          self.fregs[reg] = unsafe { std::mem::transmute::<u64, f64>(word) };
+        } 
         34 => {
           let arg1 = match &args[0] {
             Args::INT(s) => *s as usize,
@@ -389,16 +379,13 @@ impl Cpu {
           };
           let num = utils::u64_to_u8(arg1 as u64);
           self.regs.set(80, self.regs.get(80) - 8);
-          let mem = unsafe {
-            std::mem::transmute::<&Memory, &mut Memory>(&self.memory)
-          };
-          mem.write("Stack", self.regs.get(80), &num);
+          self.write(self.regs.get(80), &num);
         }
         35 => {
           let reg = args[0].get_reg() as usize;
-          let word = self.memory.read("Stack", self.regs.get(80), 8);
+          let word = self.read_u64(self.regs.get(80));
           self.regs.set(80, self.regs.get(80) + 8);
-          self.regs.set(reg, utils::make_u64(&word) as usize);
+          self.regs.set(reg, word as usize);
         }
         36 => {
           let reg = args[0].get_reg() as usize;
@@ -409,7 +396,7 @@ impl Cpu {
           if depth.len() == 0 {
             return;
           }
-          pc = depth.pop().unwrap();
+          self.pc = depth.pop().unwrap();
           continue;
         }
         38 => {
@@ -450,10 +437,17 @@ impl Cpu {
              self.regs.set(81, self.regs.get(81) | 1 << 2);
           }
         }
-        40 => {
+        40..=42 => {
           if args[3].get_flag() {
             match opcode - 40 {
               0 => self.special[0] = args[0].get_int() as usize,
+              1 => self.regs.set(81, self.regs.get(60)),
+              2 => {
+                let beg = args[0].get_int() as usize;
+                let end = args[1].get_int() as usize;
+                let perm = args[1].get_int() as u8;
+                self.gdt.push((beg, end, perm));
+              }
               _ => unsafe {
                   unreachable_unchecked()
               }
@@ -486,16 +480,14 @@ impl Cpu {
         self.throw(2);
       }
     }
-      pc = new;
-      println!("{:?}, {pc}", self.regs);
+      self.pc = new;
+      println!("{:?}, {opcode}", self.regs);
     }
   }
 
-  #[allow(mutable_transmutes)]
-  pub fn throw(&self, extype: usize) {
-    let inst = unsafe { std::mem::transmute::<&Cpu, &mut Cpu>(self) };
-    inst.special[1] = extype;
-    inst.special[2] = self.pc;
-    inst.exec(self.special[0]);
+  pub fn throw(&mut self, extype: usize) {
+    self.special[1] = extype;
+    self.special[2] = self.pc;
+    self.exec(self.special[0]);
   }
 }

@@ -43,6 +43,8 @@ pub enum Instruction {
     CMP = 38,
     FCMP = 39,
     SETEX = 40,
+    SETFLAGS = 41,
+    AGDT = 42,
     SYSCALL = 50
 }
 
@@ -90,6 +92,8 @@ impl Instruction {
             "cmp" | "CMP" => Ok((Instruction::CMP, 3)),
             "fcmp" | "FCMP" => Ok((Instruction::FCMP, 3)),
             "setex" | "SETEX" => Ok((Instruction::SETEX, 2)),
+            "setflags" | "SETFLAGS" => Ok((Instruction::SETFLAGS, 1)),
+            "agdt" | "AGDT" => Ok((Instruction::AGDT, 4)),
             "syscall" | "SYSCALL" => Ok((Instruction::SYSCALL, 2)),
             _ => Err("Invalid instruction"),
         }
@@ -111,6 +115,7 @@ impl Instruction {
             | Instruction::INC
             | Instruction::SETEX
             | Instruction::SYSCALL
+            | Instruction::AGDT
             | Instruction::DEC => true,
             _ => false,
         }
@@ -130,6 +135,9 @@ impl Args {
     pub fn new(token: &Token, defines: &Vec<Define>) -> Result<Self, &'static str> {
         match token {
             Token::IDENT(s) => {
+                if s == "sp" {
+                  return Ok(Args::REGISTER(80));
+                }
                 let id = match u8::from_str_radix(&s[1..], 10) {
                     Ok(s) => s,
                     Err(..) => 127,
@@ -146,8 +154,6 @@ impl Args {
                         return Ok(Args::REGISTER(id + 20));
                     } else if s.starts_with('d') {
                         return Ok(Args::REGISTER(id + 40));
-                    } else if s == "sp" {
-                        return Ok(Args::REGISTER(80));
                     }
                 }
                 for def in defines {

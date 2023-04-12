@@ -22,6 +22,7 @@ fn main() {
     Ok(s) => s,
     Err(e) => panic!("Error loading file : {e}")
   };
+  let offset = utils::make_u64(&file[8..16]) as usize;
   let mut cpu = Cpu::init(file);
-  cpu.exec();
+  cpu.exec(offset);
 }

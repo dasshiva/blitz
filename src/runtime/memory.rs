@@ -1,4 +1,5 @@
 use crate::exec::Cpu;
+use crate::utils;
 
 pub const READ: u8 = 0b001;
 pub const WRITE: u8 = 0b010;
@@ -21,6 +22,9 @@ impl Cpu {
     }
 
     pub fn check_permission(&self, beg: usize, end: usize, perm: u8) -> Result<(), u8>{
+      if (self.regs.get(81) & (1 << 3)) == 0 {
+        return Ok(());
+      }
       let mut first = 0; 
       let mut second = 0;
       let mut index = 0;
@@ -50,7 +54,7 @@ impl Cpu {
       Ok(())
     }
 
-    pub fn read(&mut self, area: &str, offset: usize, len: usize) -> &[u8] {
+    pub fn read(&mut self, offset: usize, len: usize) -> &[u8] {
       match self.check_permission(offset, offset + len, READ) {
         Ok(..) => &self.memory[offset..(offset + len)],
         Err(e) => {
@@ -59,5 +63,15 @@ impl Cpu {
           unreachable!()
         }
       }
+    }
+    
+    pub fn read_u32(&mut self, from: usize) -> u32 {
+      let content = self.read(from, from + 4);
+      utils::make_u32(content)
+    }
+    
+    pub fn read_u64(&mut self, from: usize) -> u64 {
+      let content = self.read(from, from + 8);
+      utils::make_u64(content)
     }
 }
