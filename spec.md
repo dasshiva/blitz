@@ -4,7 +4,7 @@ Copyright (C) 2023 Shivashish Das
 This specification describes Blitz, a hardware architecture implementated in software and its associated details.
 
 # Registers
-Blitz has 20 general purpose registers (r0 to r19) and 20 floating point registers, both od which are 8 bytes in size.
+Blitz has 20 general purpose registers (r0 to r19) and 20 floating point registers, both of which are 8 bytes in size.
 The general purpose registers can be accessed as smaller sizes as well:
 * b0 to b19 - accesses the lower 8 bits of the corresponding 8 byte register
 * w0 to w19 - accesses the lower 16 bits of the same
