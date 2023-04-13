@@ -23,6 +23,8 @@ You can find an example of how blitz assembly works by checking out the file [he
 
 Blitz is in a very early stage of development and would really appreciate your suggestions on how to improve further.
 
+To get an in-depth understanding as to how blitz works, check out the [specification](spec.md)
+
 Copyright (C) 2023 Shivashish Das
 
 Licensed under the [MIT License](LICENSE.md)
