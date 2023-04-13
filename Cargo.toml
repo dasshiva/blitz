@@ -13,9 +13,9 @@ path = "src/compiler/main.rs"
 name = "blitz"
 path = "src/runtime/main.rs"
 
-#[[bin]]
-#name = "clike"
-#path = "src/clike/main.rs"
+[[bin]]
+name = "clike"
+path = "src/clike/main.rs"
 
 [dependencies]
 file-utils = "0.1.5"

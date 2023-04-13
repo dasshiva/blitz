@@ -1,22 +1,22 @@
 func print
-  mov r10, r0
+  mov r14, r0
 label1:
   mov r0, 1
-  mov r1, [r10]
+  mov r1, [r14]
   syscall 2
-  inc r10                                                      
+  inc r14                                                     
   cmp r1, 0
   jne label1
   ret
 end
 
 func println
-  mov r10, r0
+  mov r14, r0
 label:
   mov r0, 1
-  mov r1, [r10]
+  mov r1, [r14]
   syscall 2
-  inc r10                                                 
+  inc r14                                                
   cmp r1, 0
   jne label
   mov r1, 10

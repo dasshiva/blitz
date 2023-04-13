@@ -1,4 +1,7 @@
 use std::env;
+
+use tokeniser::{Lexer, Ttype};
+mod parser;
 mod tokeniser;
 
 fn main() {
@@ -6,5 +9,16 @@ fn main() {
   if args.len() < 2 {
     panic!("Filename!")
   }
-  let file = &args[1];
+  let file = match std::fs::read_to_string(&args[1]) {
+    Ok(s) => s,
+    Err(e) => panic!("Failed to read {} {}", &args[1], e)
+  };
+  let mut lexer = Lexer::new(file);
+  loop {
+    let tok = lexer.lex();
+    dbg!(&tok);
+    if tok.2 == Ttype::EOF {
+      break;
+    }
+  }
 }
