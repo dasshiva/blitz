@@ -1,3 +1,5 @@
+include "constant.su"
+
 func handler
 .firmware
   syscall 0
@@ -7,10 +9,10 @@ end
 func _start
 .firmware
   setex handler
-  agdt 0x00000, 0x7DFFF, 0b111 // Code segment with read, write, execute permissons
-  agdt 0x7E000, 0xFDFFF, 0b001 // Data segment with only read permission
-  agdt 0xFE000, 0xFFFFF, 0b011 // Stack segment with read and write permission
-  agdt 0xFF000, 0x21847F, 0b011 // Heap segment with same permission as above
+  agdt CODE_BEGIN, CODE_END, 0b111 // Code segment with read, write, execute permissons
+  agdt DATA_BEGIN, DATA_END, 0b001 // Data segment with only read permission
+  agdt STACK_BEGIN, STACK_END, 0b011 // Stack segment with read and write permission
+  agdt HEAP_BEGIN, HEAP_END, 0b011 // Heap segment with same permission as above
   mov sp, 0xFFFFF // Set stack pointer to top of stack segment
   set r0, 3 // set bit 3 (secure mode bit)
   setflags  // set flags

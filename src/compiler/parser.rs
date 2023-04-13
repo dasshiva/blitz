@@ -45,7 +45,7 @@ pub enum Instruction {
     SETEX = 40,
     SETFLAGS = 41,
     AGDT = 42,
-    SYSCALL = 50
+    SYSCALL = 50,
 }
 
 impl Instruction {
@@ -136,7 +136,7 @@ impl Args {
         match token {
             Token::IDENT(s) => {
                 if s == "sp" {
-                  return Ok(Args::REGISTER(80));
+                    return Ok(Args::REGISTER(80));
                 }
                 let id = match u8::from_str_radix(&s[1..], 10) {
                     Ok(s) => s,
@@ -291,11 +291,22 @@ impl Function {
     }
 }
 
-pub struct Define(String, Token);
+pub enum Type {
+    BYTE,
+    SHORT,
+    INT,
+    LONG,
+    STRING,
+}
+
+pub struct Define(pub String, pub Token);
+
+pub struct Data(pub Type, pub String, pub Token);
 
 pub struct Parser {
-    define: Vec<Define>,
+    pub define: Vec<Define>,
     pub funcs: Vec<Function>,
+    pub data: Vec<Data>,
     state: u8,
 }
 
@@ -304,6 +315,7 @@ impl Parser {
         Self {
             define: Vec::new(),
             funcs: Vec::new(),
+            data: Vec::new(),
             state: 0u8,
         }
     }
@@ -316,6 +328,39 @@ impl Parser {
         }
         if self.state == 0 {
             match &target[0] {
+                Token::LABEL(s) => match &target[1] {
+                    Token::ATTR(at) => match &target[2] {
+                        Token::INT(..) => match at.as_ref() {
+                            "byte" => {
+                                self.data
+                                    .push(Data(Type::BYTE, s.to_string(), target[2].clone()))
+                            }
+                            "short" => {
+                                self.data
+                                    .push(Data(Type::SHORT, s.to_string(), target[2].clone()))
+                            }
+                            "int" => {
+                                self.data
+                                    .push(Data(Type::INT, s.to_string(), target[2].clone()))
+                            }
+                            "long" => {
+                                self.data
+                                    .push(Data(Type::LONG, s.to_string(), target[2].clone()))
+                            }
+                            _ => return Err("Unknown data type modifier"),
+                        },
+                        Token::STRING(..) => match at.as_ref() {
+                            "string" => self.data.push(Data(
+                                Type::STRING,
+                                s.to_string(),
+                                target[2].clone(),
+                            )),
+                            _ => return Err("Only type modifier 'string' is allowed for strings"),
+                        },
+                        _ => return Err("Expected value for data member here")
+                    },
+                    _ => return Err("Expected data declaration here"),
+                },
                 Token::FUNC => {
                     self.state = 2;
                     if target.len() < 2 {

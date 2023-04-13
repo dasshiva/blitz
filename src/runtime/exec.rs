@@ -156,7 +156,9 @@ impl Cpu {
       panic!("Unsupported blitz version {major}.{minor}");
     }
     let mut cpu = Cpu::new(2 * 1048 * 1048);
-    cpu.write(0, &code);
+    let data = utils::make_u64(&code[16..24]) as usize;
+    cpu.write(0, &code[..data]);
+    cpu.write(0x7E000, &code[data..]);
     cpu
   }
   
@@ -188,6 +190,17 @@ impl Cpu {
           let arg = match &args[1] {
             Args::REG(r) => self.regs.get(*r as usize),
             Args::INT(s) => *s as usize,
+            Args::OFFSET(reg, off) => {
+              let address = self.regs.get(*reg as usize) + *off as usize;
+              let size = Regs::size(*reg as usize);
+              match size {
+                1 => self.read_u8(address) as usize,
+                2 => self.read_u16(address) as usize,
+                4 => self.read_u32(address) as usize,
+                8 => self.read_u64(address) as usize,
+                _ => unreachable!()
+              }
+            }
             _ => unreachable!()
           };
           match &args[0] {

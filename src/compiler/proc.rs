@@ -84,6 +84,7 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
           }
           attr = false;
           ret.push(Token::new(&buf));
+          buf.clear();
           continue;
         }
         if buf.len() == 0 {
@@ -187,6 +188,8 @@ pub fn line_split(string: &[u8]) -> Result<Vec<Token>, &str> {
 pub struct Unit {
   pub name: String,
   pub funcs: Vec<Function>,
+  pub define: Vec<Define>,
+  pub data: Vec<Data>
 }
 
 impl Unit {
@@ -218,7 +221,8 @@ impl Unit {
     Unit {
       name: src.file,
       funcs: parser.funcs,
+      define: parser.define,
+      data: parser.data
     }
   }
-  
 }

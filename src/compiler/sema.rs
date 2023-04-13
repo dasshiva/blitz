@@ -1,5 +1,5 @@
-use crate::r#proc::Unit;
-use crate::parser::{Args::*, Attrs};
+use crate::r#proc::{Unit, Token};
+use crate::parser::{Args::*, Attrs, Type, Data};
 
 const MAGIC: u32 = 0xAFC;
 const MAJOR: u16 = 0x1;
@@ -10,6 +10,7 @@ pub struct Header {
   pub major: u16,
   pub minor: u16,
   pub start: usize,
+  pub data: usize
 }
 
 type Args = (Option<i64>, Option<f64>);
@@ -27,7 +28,8 @@ pub struct Func {
 pub struct SemUnit {
   pub name: String,
   pub header: Header,
-  pub funcs: Vec<Func>
+  pub funcs: Vec<Func>,
+  pub data: Vec<Data>
 }
 
 pub fn sem_analyse(unit: Unit) -> SemUnit {
@@ -36,9 +38,37 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
     major: MAJOR,
     minor: MINOR,
     start: 15,
+    data: 0
   };
-  let mut offset = 16usize;
+  let mut offset = 24usize;
   let mut offset_table: Vec<(usize, String)> = Vec::new();
+  if unit.data.len() != 0 {
+    let mut start = 0;
+    for define in &unit.define {
+      if define.0 == "DATA_BEGIN" {
+        match define.1 {
+          Token::INT(s) => start = s as usize,
+          _ => unreachable!()
+        }
+        break;
+      }
+    }
+    for var in &unit.data {
+      offset_table.push((start, var.1.clone()));
+      match var.0 {
+        Type::BYTE => start += 1,
+        Type::SHORT => start += 2,
+        Type::INT => start += 4,
+        Type::LONG => start += 8,
+        Type::STRING => {
+          match &var.2 {
+            Token::STRING(s) => start += s.len(),
+            _ => unreachable!()
+          }
+        }
+      }
+    }
+  }
   let mut funcs: Vec<Func> = Vec::new();
   for func in &unit.funcs {
     offset_table.push((offset, func.name.clone()));
@@ -124,16 +154,17 @@ pub fn sem_analyse(unit: Unit) -> SemUnit {
         }
       }
     }
-
     funcs.push(Func {
       ins: f,
       size,
     });
   }
+  header.data = offset;
   
   SemUnit {
     name: unit.name,
     header,
-    funcs
+    funcs,
+    data: unit.data
   }
 }

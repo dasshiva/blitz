@@ -1,3 +1,0 @@
-func low
-  mov r0, 100
-end

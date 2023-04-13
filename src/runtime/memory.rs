@@ -65,6 +65,16 @@ impl Cpu {
       }
     }
     
+    pub fn read_u8(&mut self, from: usize) -> u8 {
+      let content = self.read(from, from + 1);
+      content[0]
+    }
+    
+    pub fn read_u16(&mut self, from: usize) -> u16 {
+      let content = self.read(from, from + 4);
+      utils::make_u16(content)
+    }
+    
     pub fn read_u32(&mut self, from: usize) -> u32 {
       let content = self.read(from, from + 4);
       utils::make_u32(content)
