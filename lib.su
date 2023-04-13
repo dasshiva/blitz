@@ -1,0 +1,21 @@
+func print
+  mov r0, 1
+  mov r1, [r2]
+  syscall 2
+  inc r2                                                            
+  cmp r1, 0
+  jne print
+  ret
+end
+
+func println
+  mov r0, 1
+  mov r1, [r2]
+  syscall 2
+  inc r2                                                       
+  cmp r1, 0
+  jne println
+  mov r1, 10
+  syscall 2
+  ret
+end

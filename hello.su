@@ -1,11 +1,9 @@
+include "lib.su"
+
 hello_world: .string "Hello World"
 func main
   mov r2, hello_world
-label:
-  mov r1, [r2]
-  syscall 2
-  inc r2
-  cmp r1, 0
-  jne label
+  call println
   ret
 end
+
