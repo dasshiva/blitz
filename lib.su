@@ -1,20 +1,24 @@
 func print
+  mov r10, r0
+label1:
   mov r0, 1
-  mov r1, [r2]
+  mov r1, [r10]
   syscall 2
-  inc r2                                                            
+  inc r10                                                      
   cmp r1, 0
-  jne print
+  jne label1
   ret
 end
 
 func println
+  mov r10, r0
+label:
   mov r0, 1
-  mov r1, [r2]
+  mov r1, [r10]
   syscall 2
-  inc r2                                                       
+  inc r10                                                 
   cmp r1, 0
-  jne println
+  jne label
   mov r1, 10
   syscall 2
   ret

@@ -2,7 +2,7 @@ include "lib.su"
 
 hello_world: .string "Hello World"
 func main
-  mov r2, hello_world
+  mov r0, hello_world
   call println
   ret
 end
