@@ -2,6 +2,12 @@
 Copyright (C) 2023 Shivashish Das
 
 This specification describes Blitz, a hardware architecture implementated in software and its associated details.
+Blitz is an architecture very much like x86 but open-source and free. It is free from proprietary backdoors and 
+much more user-friendly due to its descriptive error messages. Besides, it is much simpler and easy to learn and master
+due to the way it is designed. The assembly is also free from absurd complexities as it offers the balance between 
+CISC and RISC instruction sets. Despite having a mere 43 instructions, Blitz is capable of doing most of what the processor
+on your machine can. Since Blitz runs on almost all platforms, if you can compile your program to Blitz assembly you will 
+never have to worry about portability ever again. This portability is the goal of Blitz and the problem it is trying to solve.
 
 # Registers
 Blitz has 20 general purpose registers (r0 to r19) and 20 floating point registers, both of which are 8 bytes in size.
@@ -42,12 +48,10 @@ Blitz can only use 2 MB of system memory currently though it is planned to remov
 3. Stack - Behaves as the stack memory
 4. Heap - Behaves as heap memory
 
-Blitz has a tight memory protection system. Only the code segment is marked read, write, execute i.e the processor will refuse to execute xode from any other segment other than code. This also means the code segment can be written and read from allowing code to be dynamically generated at runtime if so needed.
-Data segment is marked read-only making it ideal for constants and the like.
-Both the stack and heap segments are marked read-write for their normal operations.
+Blitz has a highly secure memory protection system. Only the code segment is marked read, write, execute i.e the processor will decline to execute code from any other segment other than code. This also implies that the code segment can be written and read by allowing code to be dynamically generated at runtime, if so needed. Data segment is marked read-only making it ideal for constants and the likes. Both the stack and heap segments are marked read-write for their normal operations.
 
 # Calling convention
-* Registers r0 to r6 are used for passing paramaters between functionncalls
+* Registers r0 to r6 are used to pass parameters between function calls
 * Registers r7 to r14 are to be saved across function calls
 * Registers r14 to r19 are scratch registers 
 * Stack must be 8-byte aligned at all times
